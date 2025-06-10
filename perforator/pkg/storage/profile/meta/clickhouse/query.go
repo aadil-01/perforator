@@ -27,18 +27,43 @@ var (
 	AllColumns string = ""
 )
 
-func generateAllColumns(row interface{}) string {
+func forEachCHField(row interface{}, callback func(fieldIndex int, structField reflect.StructField, fieldValue *reflect.Value) error) error {
 	t := reflect.TypeOf(row)
+	var v reflect.Value
+
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
+		v = reflect.ValueOf(row).Elem()
+	} else {
+		v = reflect.ValueOf(row)
 	}
 
-	var columns []string
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
-		if tag, ok := field.Tag.Lookup("ch"); ok {
+		if _, ok := field.Tag.Lookup("ch"); ok {
+			fieldValue := v.Field(i)
+			if err := callback(i, field, &fieldValue); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func generateAllColumns(row interface{}) string {
+	var columns []string
+
+	err := forEachCHField(row, func(fieldIndex int, structField reflect.StructField, fieldValue *reflect.Value) error {
+		if tag, ok := structField.Tag.Lookup("ch"); ok {
 			columns = append(columns, tag)
 		}
+		return nil
+	})
+
+	if err != nil {
+		// This shouldn't happen in generateAllColumns, but handle it gracefully
+		panic(fmt.Sprintf("unexpected error in generateAllColumns: %v", err))
 	}
 
 	return strings.Join(columns, ", ")
@@ -314,4 +339,163 @@ func buildSelectProfilesQuery(query *meta.ProfileQuery) (string, error) {
 
 func makeOrderBy(order *util.SortOrder) *sqlbuilder.OrderBy {
 	return &sqlbuilder.OrderBy{Columns: order.Columns, Descending: order.Descending}
+}
+
+func buildInsertQuery(rows []*ProfileRow) (string, error) {
+	if len(rows) == 0 {
+		return "", nil
+	}
+
+	var queryBuilder strings.Builder
+	queryBuilder.WriteString("INSERT INTO profiles (")
+	queryBuilder.WriteString(AllColumns)
+	queryBuilder.WriteString(") SETTINGS async_insert=1, wait_for_async_insert=1 VALUES ")
+
+	for i, row := range rows {
+		if i > 0 {
+			queryBuilder.WriteString(", ")
+		}
+		err := formatRowForInsert(&queryBuilder, row)
+		if err != nil {
+			return "", fmt.Errorf("failed to format row: %w", err)
+		}
+	}
+
+	return queryBuilder.String(), nil
+}
+
+func formatRowForInsert(builder *strings.Builder, row *ProfileRow) error {
+	builder.WriteByte('(')
+
+	firstField := true
+	err := forEachCHField(row, func(fieldIndex int, structField reflect.StructField, fieldValue *reflect.Value) error {
+		if !firstField {
+			builder.WriteString(", ")
+		}
+		firstField = false
+
+		if err := formatFieldForInsert(builder, *fieldValue); err != nil {
+			return fmt.Errorf("failed to format field %s: %w", structField.Name, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	builder.WriteByte(')')
+	return nil
+}
+
+func formatFieldForInsert(builder *strings.Builder, field reflect.Value) error {
+	switch field.Kind() {
+	case reflect.String:
+		builder.WriteByte('\'')
+		escapeStringToBuilder(builder, field.String())
+		builder.WriteByte('\'')
+
+	case reflect.Bool:
+		if field.Bool() {
+			builder.WriteString("true")
+		} else {
+			builder.WriteString("false")
+		}
+
+	case reflect.Slice:
+		switch field.Type().Elem().Kind() {
+		case reflect.String:
+			formatStringSliceForInsert(builder, field)
+		default:
+			return fmt.Errorf("unsupported slice type: %v", field.Type())
+		}
+
+	case reflect.Map:
+		if field.Type().Key().Kind() == reflect.String && field.Type().Elem().Kind() == reflect.String {
+			formatStringMapForInsert(builder, field)
+		} else {
+			return fmt.Errorf("unsupported map type: %v", field.Type())
+		}
+
+	case reflect.Struct:
+		if field.Type() == reflect.TypeOf(time.Time{}) {
+			timestamp := field.Interface().(time.Time)
+			milliseconds := timestamp.UnixMilli()
+			builder.WriteString(fmt.Sprintf("%d", milliseconds))
+		} else {
+			return fmt.Errorf("unsupported struct type: %v", field.Type())
+		}
+
+	default:
+		return fmt.Errorf("unsupported field type: %v", field.Type())
+	}
+
+	return nil
+}
+
+func formatStringSliceForInsert(builder *strings.Builder, field reflect.Value) {
+	if field.Len() == 0 {
+		builder.WriteString("[]")
+		return
+	}
+
+	builder.WriteByte('[')
+	for i := 0; i < field.Len(); i++ {
+		if i > 0 {
+			builder.WriteString(", ")
+		}
+		builder.WriteByte('\'')
+		escapeStringToBuilder(builder, field.Index(i).String())
+		builder.WriteByte('\'')
+	}
+	builder.WriteByte(']')
+}
+
+func formatStringMapForInsert(builder *strings.Builder, field reflect.Value) {
+	builder.WriteByte('{')
+	first := true
+	iter := field.MapRange()
+	for iter.Next() {
+		if !first {
+			builder.WriteString(", ")
+		}
+		first = false
+
+		builder.WriteByte('\'')
+		escapeStringToBuilder(builder, iter.Key().String())
+		builder.WriteString("': '")
+		escapeStringToBuilder(builder, iter.Value().String())
+		builder.WriteByte('\'')
+	}
+	builder.WriteByte('}')
+}
+
+func escapeStringToBuilder(builder *strings.Builder, str string) {
+	for _, r := range str {
+		switch r {
+		case '\b':
+			builder.WriteString("\\b")
+		case '\f':
+			builder.WriteString("\\f")
+		case '\r':
+			builder.WriteString("\\r")
+		case '\n':
+			builder.WriteString("\\n")
+		case '\t':
+			builder.WriteString("\\t")
+		case '\x00':
+			builder.WriteString("\\0")
+		case '\a':
+			builder.WriteString("\\a")
+		case '\v':
+			builder.WriteString("\\v")
+		case '\\':
+			builder.WriteString("\\\\")
+		case '\'':
+			builder.WriteString("\\'")
+		default:
+			builder.WriteRune(r)
+		}
+	}
 }

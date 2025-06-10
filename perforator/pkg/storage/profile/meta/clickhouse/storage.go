@@ -372,26 +372,16 @@ func (s *Storage) sendBatch(ctx context.Context, rows []*ProfileRow) (next []*Pr
 }
 
 func (s *Storage) sendBatchImpl(ctx context.Context, rows []*ProfileRow) error {
-	batch, err := s.conn.PrepareBatch(
-		ctx,
-		fmt.Sprintf(
-			`INSERT INTO profiles (%s) SETTINGS async_insert=1, wait_for_async_insert=1`,
-			AllColumns,
-		),
-	)
+	if len(rows) == 0 {
+		return nil
+	}
+
+	query, err := buildInsertQuery(rows)
 	if err != nil {
-		return fmt.Errorf("failed to prepare batch: %w", err)
+		return fmt.Errorf("failed to build insert query: %w", err)
 	}
 
-	defer func() { _ = batch.Abort() }()
+	s.l.Debug(ctx, "Executing batch insert", log.String("query", query))
 
-	for i, row := range rows {
-		row := row
-		err = batch.AppendStruct(row)
-		if err != nil {
-			return fmt.Errorf("failed to serialize row %d: %w", i, err)
-		}
-	}
-
-	return batch.Send()
+	return s.conn.Exec(ctx, query)
 }
