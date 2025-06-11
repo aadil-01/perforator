@@ -248,12 +248,14 @@ func NewPerforatorServer(
 			metricsInterceptor.UnaryServer(),
 			logInterceptor.UnaryServer(),
 			oauthInterceptor.UnaryServer(),
+			newAccessUnaryInterceptor(conf.ACL),
 		),
 		grpc.ChainStreamInterceptor(
 			otelgrpc.StreamServerInterceptor(),
 			metricsInterceptor.StreamServer(),
 			logInterceptor.StreamServer(),
 			oauthInterceptor.StreamServer(),
+			newAccessStreamInterceptor(),
 		),
 	)
 

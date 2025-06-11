@@ -56,6 +56,10 @@ type SymbolizationConfig struct {
 	UseGSYM bool `yaml:"use_gsym"`
 }
 
+type ACLConfig struct {
+	RecordRemoteUsers []string `yaml:"record_remote_users"`
+}
+
 type Config struct {
 	StorageConfig        bundle.Config         `yaml:"storage"`
 	BinaryProvider       BinaryProviderConfig  `yaml:"binary_provider"`
@@ -68,6 +72,7 @@ type Config struct {
 	PGOConfig            *PGOConfig            `yaml:"pgo_config"`
 	Tracing              *tracing.Config       `yaml:"tracing"`
 	SymbolizationConfig  SymbolizationConfig   `yaml:"symbolization"`
+	ACL                  ACLConfig             `yaml:"acl"`
 }
 
 func ParseConfig(path string) (conf *Config, err error) {
