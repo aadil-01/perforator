@@ -302,6 +302,7 @@ private:
 
         OldKernelMappingId_ = oldKernelMappingId.GetOrElse(Max<ui64>());
         OldPythonMappingId_ = oldPythonMappingId.GetOrElse(Max<ui64>());
+        Cerr << "Found old python mapping id " << oldPythonMappingId << Endl;
     }
 
     void ConvertFunctions() {
@@ -325,6 +326,21 @@ private:
         for (auto&& [i, location] : Enumerate(OldProfile_.location())) {
             Y_ENSURE(location.id() != 0, "Location id should be nonzero");
 
+            ESpecialMappingKind kind = ClassifySpecialMapping(location);
+            switch (kind) {
+            case ESpecialMappingKind::None:
+                break;
+
+            case ESpecialMappingKind::Kernel:
+                OldKernelLocationIds_.Insert(location.id());
+                break;
+
+            case ESpecialMappingKind::Python:
+                Cerr << "Found old python location " << location.id() << " -> " << location.mapping_id() << ": " << location.AsJSON() << Endl;
+                OldPythonLocationIds_.Insert(location.id());
+                break;
+            }
+
             auto frame = Builder_.AddStackFrame();
             if (location.mapping_id()) {
                 auto [mappingId, binaryId] = BinaryMapping_.GetPosition(location.mapping_id());
@@ -332,7 +348,9 @@ private:
                 i64 binaryOffset = location.address() + (i64)mapping.file_offset() - (i64)mapping.memory_start();
 
                 frame.SetBinary(binaryId);
-                frame.SetBinaryOffset(binaryOffset);
+                if (kind != ESpecialMappingKind::Python) {
+                    frame.SetBinaryOffset(binaryOffset);
+                }
             }
 
             auto chain = Builder_.AddInlineChain();
@@ -347,19 +365,6 @@ private:
             frame.SetInlineChain(chain.Finish());
 
             LocationMapping_.Add(location.id(), i, frame.Finish());
-
-            switch (ClassifySpecialMapping(location.id())) {
-            case ESpecialMappingKind::None:
-                break;
-
-            case ESpecialMappingKind::Kernel:
-                OldKernelLocationIds_.Insert(location.id());
-                break;
-
-            case ESpecialMappingKind::Python:
-                OldPythonLocationIds_.Insert(location.id());
-                break;
-            }
         }
     }
 
@@ -394,11 +399,11 @@ private:
 
     void ConvertSampleStack(TProfileBuilder::TSampleKeyBuilder& builder, const NProto::NPProf::Sample& sample) {
         auto kernelStack = Builder_
-            .AddStack()
+            .AddSimpleStack()
             .SetKind(NProto::NProfile::StackKind::Kernelspace);
 
         auto userStack = Builder_
-            .AddStack()
+            .AddSimpleStack()
             .SetKind(NProto::NProfile::StackKind::Userspace);
 
         // Python needs special treatment here. We began to support multiple
@@ -407,7 +412,7 @@ private:
         // workaround by storing Python frames immediately after the main stack.
         // Therefore, Python was treated differently due to historical reasons
         // in order to preserve backward compatibility.
-        TMaybe<TProfileBuilder::TStackBuilder> pythonStack;
+        TMaybe<TProfileBuilder::TSimpleStackBuilder> pythonStack;
 
         bool insideKernel = true;
         for (ui64 location : sample.location_id()) {
@@ -416,18 +421,18 @@ private:
             if (OldPythonLocationIds_.Contains(location)) {
                 if (!pythonStack) {
                     pythonStack.ConstructInPlace(Builder_
-                        .AddStack()
+                        .AddSimpleStack()
                         .SetKind(NProto::NProfile::StackKind::Other)
                         .SetRuntimeName(Builder_.AddString("python"))
                     );
                 }
-                pythonStack->AddStackFrame(frame);
+                pythonStack->AddFrame(frame);
             } else if (OldKernelLocationIds_.Contains(location)) {
                 Y_ENSURE(insideKernel, "Unexpected mixed userspace & kernelspace stack");
-                kernelStack.AddStackFrame(frame);
+                kernelStack.AddFrame(frame);
             } else {
                 insideKernel = false;
-                userStack.AddStackFrame(frame);
+                userStack.AddFrame(frame);
             }
         }
 
@@ -438,9 +443,8 @@ private:
         }
     }
 
-    ESpecialMappingKind ClassifySpecialMapping(ui64 oldLocation) const {
-        ui64 oldPosition = LocationMapping_.GetOldPosition(oldLocation);
-        ui64 mappingId = OldProfile_.location(oldPosition).mapping_id();
+    ESpecialMappingKind ClassifySpecialMapping(const NProto::NPProf::Location& location) const {
+        ui64 mappingId = location.mapping_id();
 
         if (mappingId == OldKernelMappingId_) {
             return ESpecialMappingKind::Kernel;
@@ -577,7 +581,7 @@ private:
     void ConvertMappings() {
         const auto binaries = SourceProfile_.Binaries();
 
-        OldProfile_.mutable_mapping()->Reserve(binaries.GetApproxSize());
+        OldProfile_.mutable_mapping()->Reserve(binaries.Size());
         for (auto [i, binary] : Enumerate(binaries)) {
             if (i == 0) {
                 // First binary is empty ant should not be present in pprof.
@@ -601,7 +605,7 @@ private:
     void ConvertFunctions() {
         const auto functions = SourceProfile_.Functions();
 
-        OldProfile_.mutable_function()->Reserve(functions.GetApproxSize());
+        OldProfile_.mutable_function()->Reserve(functions.Size());
         for (auto [i, func] : Enumerate(functions)) {
             // Skip first function which must be empty.
             if (i == 0) {
@@ -622,7 +626,7 @@ private:
 
         // We add first null location as the "unknown" location and shift location ids by one.
         // pprof expects that Profile.sample.location_id are non-zero.
-        OldProfile_.mutable_location()->Reserve(frames.GetApproxSize());
+        OldProfile_.mutable_location()->Reserve(frames.Size());
         for (auto [i, frame] : Enumerate(frames)) {
             NProto::NPProf::Location* location = OldProfile_.add_location();
             location->set_id(i + 1);
@@ -687,7 +691,7 @@ private:
 
         for (i32 i = 0; i < key.GetStackCount(); ++i) {
             auto&& stack = key.GetStack(i);
-            switch (stack.GetStackKind()) {
+            switch (stack.GetKind()) {
             case NPerforator::NProto::NProfile::StackKind::Userspace:
                 Y_ENSURE(ustackId.Empty(), "Multiple userspace stacks in one sample are not supported");
                 ustackId = i;
@@ -702,7 +706,7 @@ private:
                 break;
 
             default:
-                Y_ENSURE(false, "Unsupported stack kind " << StackKind_Name(stack.GetStackKind()));
+                Y_ENSURE(false, "Unsupported stack kind " << StackKind_Name(stack.GetKind()));
             }
         }
 
@@ -714,17 +718,17 @@ private:
         }
         for (i32 i = 0; i < key.GetStackCount(); ++i) {
             auto&& stack = key.GetStack(i);
-            if (stack.GetStackKind() == NPerforator::NProto::NProfile::StackKind::Other) {
+            if (stack.GetKind() == NPerforator::NProto::NProfile::StackKind::Other) {
                 consumer(stack);
             }
         }
     }
 
     void ConvertSampleStack(NProto::NPProf::Sample* sample, TStack stack) {
-        for (i32 i = 0; i < stack.GetStackFrameCount(); ++i) {
+        for (i32 i = 0; i < stack.GetFrameCount(); ++i) {
             // We shift location ids by 1 because pprof does not support zero location ids.
             // See corresponding comment inside ConvertLocations.
-            sample->add_location_id(*stack.GetStackFrame(i).GetIndex() + 1);
+            sample->add_location_id(*stack.GetFrame(i).GetIndex() + 1);
         }
     }
 

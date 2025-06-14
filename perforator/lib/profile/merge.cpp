@@ -138,7 +138,7 @@ private:
     bool SampleHasOneOfRequiredBinaries(TSample sample) const {
         TSampleKey key = sample.GetKey();
         for (TStack stack : key.GetStacks()) {
-            for (TStackFrame frame : stack.GetStackFrames()) {
+            for (TStackFrame frame : stack.GetFrames()) {
                 TBinaryId binaryId = frame.GetBinary().GetIndex();
                 if (RequiredOneOfBinaries_.contains(binaryId)) {
                     return true;
@@ -270,6 +270,7 @@ public:
         , SampleKeys_{*Profile_.SampleKeys().GetPastTheEndIndex()}
         , Stacks_{*Profile_.Stacks().GetPastTheEndIndex()}
         , Binaries_{*Profile_.Binaries().GetPastTheEndIndex()}
+        , StackSegments_{*Profile_.StackSegments().GetPastTheEndIndex()}
         , StackFrames_{*Profile_.StackFrames().GetPastTheEndIndex()}
         , InlineChains_{*Profile_.InlineChains().GetPastTheEndIndex()}
         , SourceLines_{*Profile_.SourceLines().GetPastTheEndIndex()}
@@ -437,10 +438,21 @@ private:
         return Stacks_.TryMap(stack.GetIndex(), [&, this] {
             auto builder = Builder_.AddStack();
 
-            builder.SetKind(stack.GetStackKind());
-            builder.SetRuntimeName(MapString(stack.GetStackRuntimeName()));
-            for (TStackFrame frame : stack.GetStackFrames()) {
-                builder.AddStackFrame(MapStackFrame(frame));
+            builder.SetKind(stack.GetKind());
+            builder.SetRuntimeName(MapString(stack.GetRuntimeName()));
+            builder.SetTopFrame(MapStackFrame(stack.GetTopFrame()));
+            builder.SetStackSegment(MapStackSegment(stack.GetStackSegment()));
+
+            return builder.Finish();
+        });
+    }
+
+    TStackSegmentId MapStackSegment(TStackSegment segment) {
+        return StackSegments_.TryMap(segment.GetIndex(), [&, this] {
+            auto builder = Builder_.AddStackSegment();
+
+            for (auto&& frame : segment.GetFrames()) {
+                builder.AddFrame(MapStackFrame(frame));
             }
 
             return builder.Finish();
@@ -527,6 +539,7 @@ private:
     TIndexRemapping<TSampleKeyId> SampleKeys_;
     TIndexRemapping<TStackId> Stacks_;
     TIndexRemapping<TBinaryId> Binaries_;
+    TIndexRemapping<TStackSegmentId> StackSegments_;
     TIndexRemapping<TStackFrameId> StackFrames_;
     TIndexRemapping<TInlineChainId> InlineChains_;
     TIndexRemapping<TSourceLineId> SourceLines_;

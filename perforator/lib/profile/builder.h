@@ -106,10 +106,18 @@ struct TStackFrameInfo {
     Y_DEFAULT_HASHABLE_TYPE(TStackFrameInfo);
 };
 
+struct TStackSegmentInfo {
+    TStackVec<TStackFrameId, 64> Stack;
+
+    Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TStackSegmentInfo);
+    Y_DEFAULT_HASHABLE_TYPE(TStackSegmentInfo);
+};
+
 struct TStackInfo {
     NProto::NProfile::StackKind Kind = NProto::NProfile::StackKind::Unknown;
     TStringId RuntimeName = TStringId::Zero();
-    TStackVec<TStackFrameId, 64> Stack;
+    TStackFrameId TopFrame = TStackFrameId::Zero();
+    TStackSegmentId StackSegment = TStackSegmentId::Zero();
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TStackInfo);
     Y_DEFAULT_HASHABLE_TYPE(TStackInfo);
@@ -168,7 +176,9 @@ public:
     class TFunctionBuilder;
     class TInlineChainBuilder;
     class TStackFrameBuilder;
+    class TStackSegmentBuilder;
     class TStackBuilder;
+    class TSimpleStackBuilder;
     class TSampleKeyBuilder;
     class TSampleBuilder;
 
@@ -207,7 +217,11 @@ public:
     TStackFrameBuilder AddStackFrame();
     TStackFrameId AddStackFrame(const TStackFrameInfo& info);
 
+    TStackSegmentBuilder AddStackSegment();
+    TStackSegmentId AddStackSegment(const TStackSegmentInfo& info);
+
     TStackBuilder AddStack();
+    TSimpleStackBuilder AddSimpleStack();
     TStackId AddStack(const TStackInfo& info);
 
     TSampleKeyBuilder AddSampleKey();
@@ -484,6 +498,26 @@ public:
         TProfileBuilder& Builder_;
     };
 
+    class TStackSegmentBuilder {
+    public:
+        TStackSegmentBuilder(TProfileBuilder& builder)
+            : Builder_{builder}
+        {}
+
+        TStackSegmentBuilder& AddFrame(TStackFrameId frame) {
+            Info_.Stack.push_back(frame);
+            return *this;
+        }
+
+        TStackSegmentId Finish() {
+            return Builder_.AddStackSegment(Info_);
+        }
+
+    private:
+        TStackSegmentInfo Info_;
+        TProfileBuilder& Builder_;
+    };
+
     class TStackBuilder {
     public:
         TStackBuilder(TProfileBuilder& builder)
@@ -500,8 +534,13 @@ public:
             return *this;
         }
 
-        TStackBuilder& AddStackFrame(TStackFrameId frame) {
-            Info_.Stack.push_back(frame);
+        TStackBuilder& SetTopFrame(TStackFrameId frame) {
+            Info_.TopFrame = frame;
+            return *this;
+        }
+
+        TStackBuilder& SetStackSegment(TStackSegmentId segment) {
+            Info_.StackSegment = segment;
             return *this;
         }
 
@@ -512,6 +551,45 @@ public:
     private:
         TStackInfo Info_;
         TProfileBuilder& Builder_;
+    };
+
+    class TSimpleStackBuilder {
+    public:
+        TSimpleStackBuilder(TProfileBuilder& builder)
+            : Segment_{builder}
+            , Stack_{builder}
+        {}
+
+        TSimpleStackBuilder& SetKind(NProto::NProfile::StackKind kind) {
+            Stack_.SetKind(kind);
+            return *this;
+        }
+
+        TSimpleStackBuilder& SetRuntimeName(TStringId name) {
+            Stack_.SetRuntimeName(name);
+            return *this;
+        }
+
+        TSimpleStackBuilder& AddFrame(TStackFrameId frame) {
+            if (HasTopFrame_) {
+                Segment_.AddFrame(frame);
+            } else {
+                Stack_.SetTopFrame(frame);
+                HasTopFrame_ = true;
+            }
+            return *this;
+        }
+
+        TStackId Finish() {
+            TStackSegmentId segment = Segment_.Finish();
+            Stack_.SetStackSegment(segment);
+            return Stack_.Finish();
+        }
+
+    private:
+        TStackSegmentBuilder Segment_;
+        TStackBuilder Stack_;
+        bool HasTopFrame_ = false;
     };
 
     class TSampleKeyBuilder {

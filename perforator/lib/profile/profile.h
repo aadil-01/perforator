@@ -79,6 +79,8 @@ template <CStrongIndex Index>
 struct TCommonDenseIndexTraits {
     using TIndex = Index;
 
+    static inline constexpr bool HasExactSize = true;
+
     static TIndex GetPastTheEndIndex(const NProto::NProfile::Profile& profile) {
         const i32 count = TEntityTraits<Index>::GetEntityCount(profile);
         return TIndex::FromInternalIndex(count);
@@ -151,9 +153,16 @@ struct TEntityTraits<TStackFrameId> : TCommonDenseIndexTraits<TStackFrameId> {
 };
 
 template <>
+struct TEntityTraits<TStackSegmentId> : TCommonDenseIndexTraits<TStackSegmentId> {
+    static i32 GetEntityCount(const NProto::NProfile::Profile& profile) {
+        return profile.stack_segments().offset_size();
+    }
+};
+
+template <>
 struct TEntityTraits<TStackId> : TCommonDenseIndexTraits<TStackId> {
     static i32 GetEntityCount(const NProto::NProfile::Profile& profile) {
-        return profile.stacks().offset_size();
+        return profile.stacks().kind_size();
     }
 };
 
@@ -181,6 +190,8 @@ struct TEntityTraits<TSampleId> : TCommonDenseIndexTraits<TSampleId>  {
 template <>
 struct TEntityTraits<TLabelId> {
     using TIndex = TLabelId;
+
+    static inline constexpr bool HasExactSize = false;
 
     static TIndex GetPastTheEndIndex(const NProto::NProfile::Profile& profile) {
         return TIndex::FromInternalIndex(1 + Max(
@@ -345,7 +356,11 @@ public:
         return TTraits::GetPastTheEndIndex(*Profile_);
     }
 
-    size_t GetApproxSize() const {
+    size_t GetApproxSize() const requires(!TTraits::HasExactSize) {
+        return *GetPastTheEndIndex();
+    }
+
+    size_t Size() const requires(TTraits::HasExactSize) {
         return *GetPastTheEndIndex();
     }
 
@@ -611,49 +626,94 @@ public:
     }
 };
 
-class TStack : public TIndexedEntityReader<TStackId> {
+class TStackSegment : public TIndexedEntityReader<TStackSegmentId> {
 public:
     using TBase::TBase;
 
-    i32 GetStackFrameCount() const {
+    i32 GetFrameCount() const {
         auto [from, to] = GetOffsetRange(
-            Profile_->stacks().offset(),
-            Profile_->stacks().frame_id(),
+            Profile_->stack_segments().offset(),
+            Profile_->stack_segments().frame_id(),
             *Index_
         );
 
         return to - from;
     }
 
-    NProto::NProfile::StackKind GetStackKind() const {
-        return Profile_->stacks().kind(*Index_);
-    }
-
-    TStringRef GetStackRuntimeName() const {
-        return {Profile_, Profile_->stacks().runtime_name(*Index_)};
-    }
-
-    TStackFrame GetStackFrame(i32 id) const {
-        i32 position = id + Profile_->stacks().offset(*Index_);
-        i32 index = Profile_->stacks().frame_id(position);
+    TStackFrame GetFrame(i32 id) const {
+        i32 position = id + Profile_->stack_segments().offset(*Index_);
+        i32 index = Profile_->stack_segments().frame_id(position);
         return TStackFrame{Profile_, TStackFrameId::FromInternalIndex(index)};
     }
 
-    auto GetStackFrames() const {
-        return TArrayField<TStack, &TStack::GetStackFrameCount, &TStack::GetStackFrame>(this);
+    auto GetFrames() const {
+        return TArrayField<TStackSegment, &TStackSegment::GetFrameCount, &TStackSegment::GetFrame>(this);
     }
 
     void DumpJson(NJson::TJsonWriter& writer) const {
         writer.OpenMap();
         writer.Write("type", "stack");
         writer.Write("id", *GetIndex());
-        writer.Write("kind", StackKind_Name(GetStackKind()));
-        writer.Write("runtime", GetStackRuntimeName().View());
         writer.WriteKey("frames");
         writer.OpenArray();
-        for (TStackFrame frame : GetStackFrames()) {
+        for (TStackFrame frame : GetFrames()) {
             frame.DumpJson(writer);
         }
+        writer.CloseArray();
+        writer.CloseMap();
+    }
+};
+
+class TStack : public TIndexedEntityReader<TStackId> {
+public:
+    using TBase::TBase;
+
+    NProto::NProfile::StackKind GetKind() const {
+        return Profile_->stacks().kind(*Index_);
+    }
+
+    TStringRef GetRuntimeName() const {
+        return {Profile_, Profile_->stacks().runtime_name(*Index_)};
+    }
+
+    TStackFrame GetTopFrame() const {
+        i32 id = Profile_->stacks().top_frame_id(*Index_);
+        return TStackFrame{Profile_, TStackFrameId::FromInternalIndex(id)};
+    }
+
+    TStackSegment GetStackSegment() const {
+        i32 id = Profile_->stacks().stack_segment_id(*Index_);
+        return TStackSegment{Profile_, TStackSegmentId::FromInternalIndex(id)};
+    }
+
+    i32 GetFrameCount() const {
+        return 1 + GetStackSegment().GetFrameCount();
+    }
+
+    TStackFrame GetFrame(i32 id) const {
+        if (id == 0) {
+            return GetTopFrame();
+        }
+        return GetStackSegment().GetFrame(id - 1);
+    }
+
+    auto GetFrames() const {
+        return TArrayField<TStack, &TStack::GetFrameCount, &TStack::GetFrame>(this);
+    }
+
+    void DumpJson(NJson::TJsonWriter& writer) const {
+        writer.OpenMap();
+        writer.Write("type", "stack");
+        writer.Write("id", *GetIndex());
+        writer.Write("kind", StackKind_Name(GetKind()));
+        writer.Write("runtime", GetRuntimeName().View());
+
+        writer.WriteKey("top_frame");
+        GetTopFrame().DumpJson(writer);
+
+        writer.WriteKey("rest_frames");
+        GetStackSegment().DumpJson(writer);
+
         writer.CloseArray();
         writer.CloseMap();
     }
@@ -1041,6 +1101,10 @@ public:
     }
 
     TEntityArray<TStackFrame> StackFrames() const {
+        return {Profile_};
+    }
+
+    TEntityArray<TStackSegment> StackSegments() const {
         return {Profile_};
     }
 
