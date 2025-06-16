@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+import "google/protobuf/duration.proto";
+import "perforator/proto/perforator/task_service.proto";
+
+package NPerforator.NProto.NTaskRelayer;
+
+option go_package = "github.com/yandex/perforator/perforator/proto/storage";
+
+service TaskRelayerService {
+    // GetTasks returns tasks for the specific client
+    rpc GetTasks(GetTasksRequest) returns (GetTasksResponse) {}
+
+    // StartTask sets running status for the task. It means that the agent have picked up the task.
+    rpc StartTask(StartTaskRequest) returns (StartTaskResponse) {}
+
+    // UpdateTaskStats updates task statistics.
+    rpc UpdateTaskStats(UpdateTaskStatsRequest) returns (UpdateTaskStatsResponse) {}
+
+    // FinishTask finishes the task with the result or error and also can update task statistics.
+    rpc FinishTask(FinishTaskRequest) returns (FinishTaskResponse) {}
+}
+
+message TaskFilter {
+    // This filters tasks by the host specified in spec
+    string Host = 1;
+    // This filters tasks by the pod specified in spec
+    repeated string Pods = 2;
+    // All tasks that satisfy either of the conditions are returned.
+    // (1) task.StartTime < now < task.FinishTime (tasks that should be in progress already)
+    // (2) 0 <= task.StartTime - now < MaxPrefetchInterval (tasks that are about to start)
+    google.protobuf.Duration MaxPrefetchInterval = 3;
+}
+
+message LongPollingData {
+    oneof Data {
+        uint64 TasksVersion = 1;
+    }
+}
+
+message GetTasksRequest {
+    TaskFilter Filter = 1;
+    optional LongPollingData LongPollingData = 2;
+}
+
+message GetTasksResponse {
+    repeated NPerforator.NProto.Task Tasks = 1;
+    LongPollingData LongPollingData = 2;
+}
+
+message StartTaskRequest {
+    string ID = 1;
+}
+
+message StartTaskResponse {}
+
+message RecordRemoteTaskStats {
+    uint64 CollectedProfiles = 1;
+    uint64 EventsCount = 2;
+}
+
+message TaskStats {
+    oneof Stats {
+        RecordRemoteTaskStats RecordRemoteTaskStats = 1;
+    }
+}
+
+message UpdateTaskStatsRequest {
+    string ID = 1;
+    // Number of update targeting this task.
+    // This helps to prevent incorrect updates order.
+    uint64 UpdateSeqNumber = 2;
+    TaskStats Stats = 3;
+}
+
+message UpdateTaskStatsResponse {}
+
+message TaskResult {
+    oneof Result {
+        string ErrorMessage = 1;
+    }
+}
+
+message FinishTaskRequest {
+    string ID = 1;
+    TaskResult Result = 2;
+    // Final stats to set. Can be omitted.
+    TaskStats Stats = 3;
+}
+
+message FinishTaskResponse {}
