@@ -1,8 +1,8 @@
 import * as React from 'react'
-import {useState} from 'react'
+import { useState } from 'react'
 
-import { BarsAscendingAlignLeftArrowUp, BarsDescendingAlignLeftArrowDown, Funnel, FunnelXmark, Magnifier, Xmark } from '@gravity-ui/icons';
-import { Button, Icon } from '@gravity-ui/uikit';
+import { ArrowRightArrowLeft, BarsAscendingAlignLeftArrowUp, BarsDescendingAlignLeftArrowDown, Funnel, FunnelXmark, Magnifier, Xmark } from '@gravity-ui/icons';
+import { Button, Icon, Switch } from '@gravity-ui/uikit';
 
 import { Hotkey } from '../Hotkey/Hotkey';
 import type { ProfileData } from '../../models/Profile';
@@ -27,7 +27,7 @@ export interface FlamegraphProps {
     profileData: ProfileData | null;
     goToDefinitionHref: GoToDefinitionHref;
     onFinishRendering?: () => void;
-    onSuccess: ContextMenuProps['onSuccess']   
+    onSuccess: ContextMenuProps['onSuccess']
     getState: GetStateFromQuery<QueryKeys>;
     setState: SetStateFromQuery<QueryKeys>;
 }
@@ -40,6 +40,7 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
     const flamegraphOffsets = React.useRef<FlamegraphOffseter | null>(null);
     const search = getQuery('flamegraphQuery');
     const reverse = (getQuery('flamegraphReverse') ?? String(userSettings.reverseFlameByDefault)) === 'true';
+    const isDiffSwitchingSupported = profileData.meta.version > 1;
 
     React.useEffect(() => {
         if (profileData) {
@@ -54,6 +55,15 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
     const handleSearch = React.useCallback(() => {
         setShowDialog(true);
     }, []);
+
+    const shouldSwapDiff = getQuery('flameBase') === 'diff'
+    const setShouldSwapdiff = (value: boolean) => {
+        if(value) {
+            setQuery({'flameBase': 'diff'})
+        } else {
+            setQuery({'flameBase': 'base'})
+        }
+    }
 
     const handleReverse = React.useCallback(() => {
         setQuery({ 'flamegraphReverse': String(!reverse) });
@@ -91,12 +101,12 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                 searchPattern: search ? exactMatch === 'true' ? decodeURIComponent(search) : RegExp(decodeURIComponent(search)) : null,
                 reverse,
                 keepOnlyFound,
-                onFinishRendering
+                onFinishRendering,
             };
 
             return newFlame(flamegraphContainer.current, profileData, flamegraphOffsets.current, renderOptions);
         }
-        return () => {};
+        return () => { };
     }, [exactMatch, getQuery, isDiff, keepOnlyFound, profileData, reverse, search, setQuery, theme, userSettings]);
 
     const handleContextMenu = React.useCallback((event: React.MouseEvent) => {
@@ -125,7 +135,7 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
         }
     }, [popupData]);
 
-    const handleKeyDown = React.useCallback((event: KeyboardEvent)=> {
+    const handleKeyDown = React.useCallback((event: KeyboardEvent) => {
         if ((event.ctrlKey || event.metaKey) && event.code === 'KeyF') {
             event.preventDefault();
             handleSearch();
@@ -160,19 +170,25 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                     <h3 className="flamegraph__title">Flame Graph</h3>
                     <div className="flamegraph__buttons">
                         <Button className="flamegraph__button flamegraph__button_reverse" onClick={handleReverse}>
-                            <Icon data={reverse ? BarsDescendingAlignLeftArrowDown : BarsAscendingAlignLeftArrowUp}/> Reverse
+                            <Icon data={reverse ? BarsDescendingAlignLeftArrowDown : BarsAscendingAlignLeftArrowUp} /> Reverse
                         </Button>
                         <Button className="flamegraph__button flamegraph__button_search" onClick={handleSearch}>
-                            <Icon className="regexp-dialog__header-icon" data={Magnifier}/>
-                        Search
+                            <Icon className="regexp-dialog__header-icon" data={Magnifier} />
+                            Search
                             <Hotkey value="cmd+F" />
                         </Button>
                         {search ?
                             <Button onClick={switchKeepOnlyFound}>
-                                <Icon data={keepOnlyFound ? FunnelXmark : Funnel}/>
+                                <Icon data={keepOnlyFound ? FunnelXmark : Funnel} />
                                 {keepOnlyFound ? 'Show all stacks' : 'Show matched stacks'}
-                                <Hotkey value="alt+F"/>
+                                <Hotkey value="alt+F" />
                             </Button>
+                            : null}
+                        {isDiff && isDiffSwitchingSupported ?
+                            <Switch className="flamegraph__switch" checked={shouldSwapDiff} onUpdate={setShouldSwapdiff}>
+                                <Icon data={ArrowRightArrowLeft} />
+                                Swap Base and Diff Profiles
+                            </Switch>
                             : null}
                     </div>
                     <div className="flamegraph__frames-count">Showing {framesCount} frames</div>
@@ -191,7 +207,7 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                         </Button>
                     </div>
                     <div className="flamegraph__match">
-                    Matched: <span className="flamegraph__match-value" />
+                        Matched: <span className="flamegraph__match-value" />
                         <Button
                             className="flamegraph__clear"
                             view="flat-danger"
@@ -207,10 +223,11 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                     <div ref={canvasRef} onClickCapture={handleOutsideContextMenu} onContextMenu={handleContextMenu}>
                         <canvas className="flamegraph__canvas" />
                     </div>
-                    <template className="flamegraph__label-template" dangerouslySetInnerHTML={{ __html: `
+                    <template className="flamegraph__label-template" dangerouslySetInnerHTML={{
+                        __html: `
                     <div class="flamegraph__label">
                         <span></span>
-                    </div>` }}/>
+                    </div>` }} />
                     <div className="flamegraph__labels-container" />
                     <div className='flamegraph__highlight'>
                         <span />
@@ -218,14 +235,14 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                 </div>
             </div>
             {popupData && (
-                <ContextMenu 
-                onSuccess={onSuccess} 
-                onClosePopup={() => {setPopupData(null);}} 
-                popupData={popupData} 
-                anchorRef={canvasRef} 
-                getQuery={getQuery} 
-                setQuery={setQuery} 
-                goToDefinitionHref={goToDefinitionHref} 
+                <ContextMenu
+                    onSuccess={onSuccess}
+                    onClosePopup={() => { setPopupData(null); }}
+                    popupData={popupData}
+                    anchorRef={canvasRef}
+                    getQuery={getQuery}
+                    setQuery={setQuery}
+                    goToDefinitionHref={goToDefinitionHref}
                 />
             )}
         </>

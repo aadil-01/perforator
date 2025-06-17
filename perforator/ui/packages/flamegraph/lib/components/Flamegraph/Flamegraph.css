@@ -57,6 +57,10 @@
     margin-right: var(--g-spacing-3);
 }
 
+.flamegraph__switch {
+    margin-left: var(--g-spacing-2);
+}
+
 .flamegraph__frames-count {
     right: 0;
 }

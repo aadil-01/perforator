@@ -99,13 +99,16 @@ export function hsv2hsl(h: number, s: number, v: number) {
 }
 
 
-export function diffcolor(node: FormatNode, root: FormatNode) {
+export function diffcolor(node: FormatNode, root: FormatNode, reverse?: boolean) {
     const lhs = node.eventCount;
     const rhs = root.baseEventCount && root.baseEventCount > 1e-5
         ? (node.baseEventCount ?? 0) * root.eventCount / root.baseEventCount
         : 0;
 
-    const diff = rhs > 1e-5 ? (lhs - rhs) / rhs : 1.0;
+    let diff = rhs > 1e-5 ? (lhs - rhs) / rhs : 1.0;
+    if(reverse) {
+        diff *= -1
+    }
     const d = Math.min(Math.abs(diff), 1.0);
 
     if (d < 1e-3) {
