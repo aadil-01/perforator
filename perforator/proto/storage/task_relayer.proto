@@ -54,23 +54,12 @@ message StartTaskRequest {
 
 message StartTaskResponse {}
 
-message RecordRemoteTaskStats {
-    uint64 CollectedProfiles = 1;
-    uint64 EventsCount = 2;
-}
-
-message TaskStats {
-    oneof Stats {
-        RecordRemoteTaskStats RecordRemoteTaskStats = 1;
-    }
-}
-
 message UpdateTaskStatsRequest {
     string ID = 1;
     // Number of update targeting this task.
     // This helps to prevent incorrect updates order.
     uint64 UpdateSeqNumber = 2;
-    TaskStats Stats = 3;
+    NPerforator.NProto.TaskStats Stats = 3;
 }
 
 message UpdateTaskStatsResponse {}

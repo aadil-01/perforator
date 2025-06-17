@@ -124,11 +124,23 @@ message TaskResult {
     }
 }
 
+message RecordRemoteTaskStats {
+    uint64 CollectedProfiles = 1;
+    uint64 EventsCount = 2;
+}
+
+message TaskStats {
+    oneof Stats {
+        RecordRemoteTaskStats RecordRemoteTaskStats = 1;
+    }
+}
+
 message TaskStatus {
     TaskState State = 1;
     int64 LastPing = 2;
     string Error = 3;
     repeated TaskExecution Attempts = 4;
+    TaskStats Stats = 5;
 }
 
 enum TaskState {
