@@ -167,8 +167,7 @@ private:
         ExpectEntityArray(stackSegments.frame_id(), Profile_.stack_frames().binary_id(), "stack_frame");
 
         // Check that the first stack frame is empty.
-        Y_ENSURE(stackSegments.frame_id_size() > 0);
-        Y_ENSURE(stackSegments.frame_id(0) == 0);
+        Y_ENSURE(stackSegments.offset(0) == 0);
         Y_ENSURE(stackSegments.offset_size() == 1 || stackSegments.offset(1) == 0);
     }
 

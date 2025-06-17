@@ -557,8 +557,8 @@ public:
         , Builder_{merged}
     {}
 
-    void Finish() {
-        std::move(Builder_).Finish();
+    NProto::NProfile::Profile* Finish() {
+        return std::move(Builder_).Finish();
     }
 
     void Add(const NProto::NProfile::Profile& proto) {
@@ -578,13 +578,17 @@ TProfileMerger::TProfileMerger(NProto::NProfile::Profile* merged, const NProto::
     : Impl_{MakeHolder<TImpl>(merged, options)}
 {}
 
+TProfileMerger::TProfileMerger(TProfileMerger&& rhs) noexcept = default;
+
+TProfileMerger& TProfileMerger::operator=(TProfileMerger&& rhs) noexcept = default;
+
 TProfileMerger::~TProfileMerger() = default;
 
 void TProfileMerger::Add(const NProto::NProfile::Profile& proto) {
     return Impl_->Add(proto);
 }
 
-void TProfileMerger::Finish() && {
+NProto::NProfile::Profile* TProfileMerger::Finish() && {
     return Impl_->Finish();
 }
 

@@ -52,6 +52,7 @@ size_t CountBits(Range&& range) {
 NPerforator::NProto::NProfile::MergeOptions MakeCommonMergeOptions() {
     NPerforator::NProto::NProfile::MergeOptions options;
     options.set_ignore_process_ids(true);
+    options.set_ignore_thread_ids(true);
     options.set_ignore_timestamps(true);
     options.mutable_label_filter()->add_skipped_key_prefixes("tls:");
     options.mutable_label_filter()->add_skipped_key_prefixes("cgroup");
@@ -343,6 +344,7 @@ int main(int argc, const char* argv[]) {
     if (argv[1] == "merge-threaded"sv) {
         Y_ENSURE(argc > 3);
 
+        const TInstant start = Now();
         const int threadCount = 20;
 
         TThreadPool tp;
@@ -353,7 +355,7 @@ int main(int argc, const char* argv[]) {
 
         NPerforator::NProfile::TParallelProfileMergerOptions mergerOptions;
         mergerOptions.MergeOptions = options;
-        mergerOptions.ConcurrencyLevel = 10;
+        mergerOptions.ConcurrencyLevel = 16;
         mergerOptions.BufferSize = 20;
 
         NPerforator::NProfile::TParallelProfileMerger merger{&merged, mergerOptions, &tp};
@@ -388,6 +390,8 @@ int main(int argc, const char* argv[]) {
 
         TFileOutput out{argv[2]};
         merged.SerializeToArcadiaStream(&out);
+
+        Cerr << "Finished merge in " << HumanReadable(Now() - start) << Endl;
 
         return 0;
     }

@@ -2,6 +2,8 @@
 
 #include <util/generic/yexception.h>
 
+#include <contrib/restricted/abseil-cpp/absl/hash/hash.h>
+
 #include <algorithm>
 #include <compare>
 
@@ -28,12 +30,12 @@ public:
     }
 
     static TStrongIndex FromInternalIndex(TExplicitType<i32> index) {
-        Y_ENSURE(index >= 0);
+        Y_ASSERT(index >= 0);
         return TStrongIndex{index};
     }
 
     static TStrongIndex FromInternalIndex(TExplicitType<ui32> index) {
-        Y_ENSURE(index < static_cast<ui32>(Max<i32>()));
+        Y_ASSERT(index < static_cast<ui32>(Max<i32>()));
         return FromInternalIndex(static_cast<i32>(index));
     }
 
@@ -106,3 +108,14 @@ Y_DEFINE_STRONG_INDEX_TAG(TLabelId);
 ////////////////////////////////////////////////////////////////////////////////
 
 } // namespace NPerforator::NProfile
+
+namespace absl::hash_internal {
+
+//////////////////////////////////////////////////////////////////////////////////
+
+template <typename Tag>
+struct is_uniquely_represented<NPerforator::NProfile::TStrongIndex<Tag>> : std::true_type {};
+
+//////////////////////////////////////////////////////////////////////////////////
+
+} // namespace absl::internal

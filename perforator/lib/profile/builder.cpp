@@ -255,7 +255,7 @@ public:
     TSampleKeyId AddSampleKey(const TSampleKeyInfo& info) {
         TSampleKeyId id = FetchHashedLossy(SampleKeyHashes_, info);
         if (ui32 idx = id.GetInternalIndex(); idx >= SampleByKeys_.size()) {
-            SampleByKeys_.resize(1 + id.GetInternalIndex() * 2);
+            SampleByKeys_.resize(1 + id.GetInternalIndex() * 2, TSampleId::Invalid());
         }
         return id;
     }
@@ -270,12 +270,13 @@ public:
         return id;
     }
 
-    void Finish() {
+    NProto::NProfile::Profile* Finish() {
         for (auto [i, sum] : Enumerate(ValuesSum_)) {
             auto& protosum = *Profile_.mutable_samples()->mutable_values(i)->mutable_value_sum();
             protosum.set_lo(GetLow(sum));
             protosum.set_hi(GetHigh(sum));
         }
+        return &Profile_;
     }
 
 private:
@@ -295,9 +296,9 @@ private:
 
         // We should not merge timestamped samples.
         if (!sample.Timestamp) {
-            TMaybe<TSampleId>& prev = SampleByKeys_.at(*sample.Key);
-            if (prev) {
-                id = *prev;
+            TSampleId& prev = SampleByKeys_.at(*sample.Key);
+            if (prev.IsValid()) {
+                id = prev;
            } else {
                 prev = id;
            }
@@ -373,7 +374,7 @@ private:
     }
 
     template <typename Map, typename Key, typename Index = typename Map::mapped_type>
-    Index FetchHashedLossy(Map& map, Key key) {
+    Index FetchHashedLossy(Map& map, const Key& key) {
         return FetchImpl(map, absl::HashOf(key) ^ 0xdeadbeefdeadbeefull, key);
     }
 
@@ -511,7 +512,7 @@ private:
     absl::flat_hash_map<ui64, TStackSegmentId> StackSegmentHashes_;
     absl::flat_hash_map<TStackInfo, TStackId> Stacks_;
     absl::flat_hash_map<ui64, TSampleKeyId> SampleKeyHashes_;
-    TVector<TMaybe<TSampleId>> SampleByKeys_;
+    TVector<TSampleId> SampleByKeys_;
     TVector<ui128> ValuesSum_;
 };
 
@@ -672,7 +673,7 @@ TSampleId TProfileBuilder::AddSample(const TSampleInfo& info) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-void TProfileBuilder::Finish() && {
+NProto::NProfile::Profile* TProfileBuilder::Finish() && {
     return Impl_->Finish();
 }
 

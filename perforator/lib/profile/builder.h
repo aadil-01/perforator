@@ -230,7 +230,7 @@ public:
     TSampleBuilder AddSample();
     TSampleId AddSample(const TSampleInfo& info);
 
-    void Finish() &&;
+    NProto::NProfile::Profile* Finish() &&;
 
 public:
     class TMetadataBuilder {
