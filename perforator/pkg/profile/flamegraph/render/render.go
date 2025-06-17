@@ -53,15 +53,16 @@ func init() {
 	})
 
 	template.Must(tmpl.New("html").Parse(htmlTmpl))
-	template.Must(tmpl.New("html_v2").Parse(newHtmlTmpl))
+	template.Must(tmpl.New("html-v2").Parse(newHtmlTmpl))
 }
 
 type Format string
 
 const (
-	HTMLFormat   Format = "html"
-	HTMLFormatV2 Format = "html_v2"
-	JSONFormat   Format = "json"
+	HTMLFormat       Format = "html"
+	HTMLFormatV2     Format = "html-v2"
+	JSONFormat       Format = "json"
+	JSONPrettyFormat Format = "json-pretty"
 )
 
 const (
@@ -223,14 +224,14 @@ func (f *FlameGraph) hashcolor(name string, module FrameOrigin) color.RGBA {
 	v3 := v2
 
 	switch module {
-	case "kernel":
+	case FrameOriginKernel:
 		return color.RGBA{
 			R: uint8(96 + 55*v2),
 			G: uint8(96 + (255-96)*v1),
 			B: uint8(205 + 50*v3),
 			A: 0,
 		}
-	case "python":
+	case FrameOriginPython:
 		return color.RGBA{
 			R: uint8(103 + 50*v2),
 			G: uint8(178 + 77*v1),
@@ -391,7 +392,16 @@ func renderFramesByHand(frameLevels [][]*frame, diff bool) string {
 	return w.String()
 }
 
+func (f *FlameGraph) renderBlocksToPrettyJSON(blocks []*block, w io.Writer) error {
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	return f.encodeBlocksToJSON(blocks, enc)
+}
 func (f *FlameGraph) renderBlocksToJSON(blocks []*block, w io.Writer) error {
+	enc := json.NewEncoder(w)
+	return f.encodeBlocksToJSON(blocks, enc)
+}
+func (f *FlameGraph) encodeBlocksToJSON(blocks []*block, enc *json.Encoder) error {
 	strtab := NewStringTable()
 
 	maxLevel := 0
@@ -405,32 +415,39 @@ func (f *FlameGraph) renderBlocksToJSON(blocks []*block, w io.Writer) error {
 	nodeLevels := make([][]format.RenderingNode, maxLevel+1)
 
 	for _, block := range blocks {
-		// Skip disappeared (present in baseline, but not in the diff profile) blocks
-		if block.weight == 0.0 {
-			continue
-		}
 
 		blocksByLevels[block.level] = append(blocksByLevels[block.level], block)
 	}
 
+	compare := func(diff float64) int {
+		if diff > 0 {
+			return 1
+		}
+		if diff < 0 {
+			return -1
+		}
+		return 0
+	}
+
 	compareOffsets := func(a *block, b *block) int {
-		// offset is defined on [0, 1), compare fn must return int, so we round it up and add a sign
-		// diff (-1, 0) maps to -1
-		// diff {0} maps to 0
-		// diff (0, 1) maps to 1
 		diff := a.offset - b.offset
-		return int(math.Copysign(math.Ceil(math.Abs(diff)), diff))
+		compareResult := compare(diff)
+		if compareResult != 0 {
+			return compareResult
+		}
+		return strings.Compare(a.name, b.name)
 	}
 
 	for _, blocksOnLevel := range blocksByLevels {
 		slices.SortFunc(blocksOnLevel, compareOffsets)
 	}
 
-	for h, blocksOnLevel := range blocksByLevels {
-		for _, currentBlock := range blocksOnLevel {
+	for _, blocksOnLevel := range blocksByLevels {
+		for i, currentBlock := range blocksOnLevel {
 			parentIndex := -1
-			if h > 0 {
-				parentIndex, _ = slices.BinarySearchFunc(blocksByLevels[h-1], currentBlock.parent, compareOffsets)
+			currentBlock.setLevelPos(i)
+			if currentBlock.parent != nil {
+				parentIndex = currentBlock.parent.levelPos
 			}
 			node := format.RenderingNode{
 				ParentIndex:     parentIndex,
@@ -451,7 +468,7 @@ func (f *FlameGraph) renderBlocksToJSON(blocks []*block, w io.Writer) error {
 	profileMeta := format.ProfileMeta{
 		EventType: strtab.Add(f.eventType),
 		FrameType: strtab.Add(f.frameType),
-		Version:   1,
+		Version:   2,
 	}
 
 	profileData := format.ProfileData{
@@ -460,8 +477,7 @@ func (f *FlameGraph) renderBlocksToJSON(blocks []*block, w io.Writer) error {
 		Meta:    profileMeta,
 	}
 
-	// NOTE: if slow swap with goccy/go-json
-	err := json.NewEncoder(w).Encode(profileData)
+	err := enc.Encode(profileData)
 	if err != nil {
 		return err
 	}
@@ -494,6 +510,8 @@ func (f *FlameGraph) renderBlocks(blocks []*block, w io.Writer) error {
 	switch f.format {
 	case JSONFormat:
 		return f.renderBlocksToJSON(blocks, w)
+	case JSONPrettyFormat:
+		return f.renderBlocksToPrettyJSON(blocks, w)
 	case HTMLFormat:
 		return f.renderBlocksToHTML(blocks, w)
 	case HTMLFormatV2:
