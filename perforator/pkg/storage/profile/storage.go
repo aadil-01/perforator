@@ -24,8 +24,6 @@ import (
 var _ storage.Storage = (*ProfileStorage)(nil)
 var _ Storage = (*ProfileStorage)(nil)
 
-type BlobID string
-
 // Sometimes we request a lot of profiles from the storage, and profiles from different services
 // might drastically differ in size. For example, a service instance running on 4000%CPU could
 // generate ~x6 more profile data than a service instance running on 700%.
@@ -80,7 +78,6 @@ func (s *ProfileStorage) StoreProfile(ctx context.Context, metas []*meta.Profile
 
 	for _, meta := range metas {
 		meta.ID = id.String()
-		meta.BlobID = id.String()
 	}
 
 	s.log.Debug(ctx, "Store profile", log.Array("metas", metas))
@@ -142,7 +139,7 @@ func uncompressIfNeeded(bytes []byte, compression string) ([]byte, error) {
 func (s *ProfileStorage) fillProfileBlobFields(ctx context.Context, profile *Profile) error {
 	var err error
 
-	profile.Body, err = s.getBlob(ctx, profile.Meta.BlobID)
+	profile.Body, err = s.getBlob(ctx, profile.Meta.ID)
 	if err != nil {
 		return err
 	}
@@ -309,7 +306,7 @@ func (s *ProfileStorage) CollectExpired(
 		result = append(result, &storage.ObjectMeta{
 			ID: profile.ID,
 			BlobInfo: &storage.BlobInfo{
-				ID: profile.BlobID,
+				ID: profile.ID,
 			},
 			LastUsedTimestamp: profile.LastUsedTimestamp,
 		})
@@ -327,7 +324,7 @@ func (s *ProfileStorage) Delete(ctx context.Context, IDs []string) error {
 
 	keys := make([]string, 0, len(metas))
 	for _, meta := range metas {
-		keys = append(keys, meta.BlobID)
+		keys = append(keys, meta.ID)
 	}
 
 	err = s.BlobStorage.DeleteObjects(ctx, keys)
