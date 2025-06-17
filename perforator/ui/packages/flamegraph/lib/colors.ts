@@ -10,15 +10,14 @@ function namehash(name: string, reversed = false): number {
     let max = 1;
     let mod = 10;
     const start = reversed ? name.length - 1 : 0;
-    const check = reversed ? (j: number) => j > 0 : (j: number) => j < name.length;
     const increment = reversed ? -1 : 1;
 
-    for (let j = start; check(j); j += increment) {
+    for (let j = start; reversed ? j > 0 : j < name.length; j += increment) {
         const i = name.charCodeAt(j) % mod;
 
         vector += (i / (mod - 1)) * weight;
         mod += 1;
-        max += Number(weight);
+        max += weight;
         weight *= 0.7;
 
         if (mod > 13) {
