@@ -574,3 +574,59 @@ def test_build_webpack_with_after_build():
         after_build_args='some-args',
         after_build_outdir='dist',
     )
+
+
+# noinspection SpellCheckingInspection
+def test_build_rspack_args():
+    # arrange
+    command_args = """
+        --arcadia-root /Users/khoden/arcadia
+        --arcadia-build-root /Users/khoden/.ya/build/build_root/emev/00008e
+        --local-cli yes
+        --moddir devtools/dummy_arcadia/typescript/with_simple_bundling
+        --nodejs-bin /Users/khoden/.ya/tools/v4/5356355025/node
+        --pm-script /Users/khoden/.ya/tools/v4/4992859933/node_modules/pnpm/dist/pnpm.cjs
+        --pm-type pnpm
+        --trace no
+        --verbose yes
+        build-rspack
+        --bundler-config-path /Users/khoden/arcadia/devtools/dummy_arcadia/typescript/with_simple_bundling/rspack.config.js
+        --output-file /Users/khoden/.ya/build/build_root/emev/00008e/devtools/dummy_arcadia/typescript/with_simple_bundling/dummy_arcadia_typescript_with_simple_bundling.output.tar
+        --output-dirs dev-bundle prod-bundle
+        --tsconfigs tsconfig.json
+        --vcs-info
+    """
+
+    # act + assert
+    assert __convert_args_to_dict(command_args) == dict(
+        # Base
+        arcadia_build_root='/Users/khoden/.ya/build/build_root/emev/00008e',
+        arcadia_root='/Users/khoden/arcadia',
+        moddir='devtools/dummy_arcadia/typescript/with_simple_bundling',
+        nodejs_bin='/Users/khoden/.ya/tools/v4/5356355025/node',
+        pm_script='/Users/khoden/.ya/tools/v4/4992859933/node_modules/pnpm/dist/pnpm.cjs',
+        pm_type='pnpm',
+        yatool_prebuilder_path=None,
+        env=[],
+        # Flags
+        local_cli=True,
+        nm_bundle=False,
+        trace=False,
+        verbose=True,
+        # Calculated
+        bindir='/Users/khoden/.ya/build/build_root/emev/00008e/devtools/dummy_arcadia/typescript/with_simple_bundling',
+        bundler_config_path='/Users/khoden/arcadia/devtools/dummy_arcadia/typescript/with_simple_bundling/rspack.config.js',
+        curdir='/Users/khoden/arcadia/devtools/dummy_arcadia/typescript/with_simple_bundling',
+        node_modules_bundle=False,
+        # Command-specific
+        bundler_config='rspack.config.js',
+        command='build-rspack',
+        output_file='/Users/khoden/.ya/build/build_root/emev/00008e/devtools/dummy_arcadia/typescript/with_simple_bundling/dummy_arcadia_typescript_with_simple_bundling.output.tar',
+        output_dirs=['dev-bundle', 'prod-bundle'],
+        tsconfigs=['tsconfig.json'],
+        vcs_info=None,
+        with_after_build=False,
+        after_build_js=None,
+        after_build_args=None,
+        after_build_outdir=None,
+    )

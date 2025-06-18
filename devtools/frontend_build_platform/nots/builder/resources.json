@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-04-14T16:35:11.328Z",
+    "created": "2025-06-17T12:02:13.383Z",
     "pr": {
-      "id": 8398405,
-      "author": "vturov",
-      "summary": "Не упаковывать node_modules по умолчанию"
+      "id": 9073535,
+      "author": "baymer",
+      "summary": "FBP-2252: Добавить rspack в nots/builder"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:8508285494"
+      "uri": "sbr:8987100655"
     },
     "darwin-arm64": {
-      "uri": "sbr:8508284114"
+      "uri": "sbr:8987097290"
     },
     "linux": {
-      "uri": "sbr:8508287772"
+      "uri": "sbr:8987106483"
     },
     "linux-aarch64": {
-      "uri": "sbr:8508286571"
+      "uri": "sbr:8987103575"
     }
   }
 }

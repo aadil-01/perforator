@@ -9,6 +9,8 @@ from .builders import (
     ViteBuilderOptions,
     WebpackBuilder,
     WebpackBuilderOptions,
+    RspackBuilder,
+    RspackBuilderOptions,
 )
 from .create_node_modules import (
     create_node_modules,
@@ -38,6 +40,8 @@ __all__ = [
     'ViteBuilderOptions',
     'WebpackBuilder',
     'WebpackBuilderOptions',
+    'RspackBuilder',
+    'RspackBuilderOptions',
     'prepare_deps',
     'PrepareDepsOptions',
     # utils
