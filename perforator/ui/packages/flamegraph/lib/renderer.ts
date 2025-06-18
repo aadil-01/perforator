@@ -405,7 +405,7 @@ export class FlamegraphOffseter {
         return Math.min((evWidth) / this.widthRatio!, this.canvasWidth!);
     }
 
-    getEvents(node: FormatNode) {
+    getEvents(node?: FormatNode) {
         const fieldName = this.shouldReverseDiff ? 'baseEventCount' : 'eventCount' as const;
         return node?.[fieldName] ?? 0;
     }
@@ -414,8 +414,8 @@ export class FlamegraphOffseter {
         const fieldName = this.shouldReverseDiff ? 'baseSampleCount' : 'sampleCount' as const;
         return node?.[fieldName] ?? 0;
     }
-    visibleNode(node: FormatNode) {
-        return (this.getEvents(node)) - (node.omittedEventCount ?? 0) >= this.minVisibleEv!;
+    visibleNode(node?: FormatNode) {
+        return (this.getEvents(node)) - (node?.omittedEventCount ?? 0) >= this.minVisibleEv!;
     }
 
     keepRendering(h: number) {
