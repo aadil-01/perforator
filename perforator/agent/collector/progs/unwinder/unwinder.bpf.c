@@ -12,6 +12,7 @@
 #include "output.h"
 #include "pidns.h"
 #include "python.h"
+#include "php/unwind.h"
 #include "task.h"
 #include "thread_local.h"
 #include "tracepoints.h"
@@ -68,7 +69,9 @@ struct profiler_state {
     struct stack kernstack;
     struct stack userstack;
     struct python_state python_state;
-
+#ifdef PERFORATOR_ENABLE_PHP
+    struct php_state php_state;
+#endif
     struct record_sample sample;
     struct record_new_process newproc;
 
@@ -94,6 +97,9 @@ struct profiler_config {
 
     // Enable JVM-specific unwinding and symbolization.
     bool enable_jvm;
+
+    // Enable PHP profiling
+    bool enable_php;
 
     // Cgroup resolution engine to use
     enum cgroup_engine active_cgroup_engine;
@@ -483,6 +489,21 @@ static NOINLINE int profiler_stage_collect_python_stack(void* ctx, struct profil
     return 0;
 }
 
+#ifdef PERFORATOR_ENABLE_PHP
+static NOINLINE int profiler_stage_collect_php_stack(void* ctx, struct profiler_state* state, struct profiler_config* config) {
+    if (state == NULL || config == NULL || !config->enable_php) {
+        return -1;
+    }
+
+    struct process_info* info = lookup_process(ctx, state);
+    if (!info) {
+        return -1;
+    }
+    php_collect_stack(info, &state->php_state);
+    return 0;
+}
+#endif
+
 static NOINLINE int profiler_stage_collect_tls(void* ctx, struct profiler_state* state, struct profiler_config* config) {
     if (state == NULL || config == NULL) {
         return -1;
@@ -581,6 +602,9 @@ static NOINLINE int profiler_do_sample_impl_perfevent(void* ctx, struct user_reg
     PROFILER_DO_SAMPLE_COMMON_PROLOGUE;
 
     PROFILER_DEFINE_COMMON_STAGES;
+#ifdef PERFORATOR_ENABLE_PHP
+    PROFILER_DEFINE_STAGE(profiler_stage_collect_php_stack(ctx, state, config), METRIC_ERROR_STAGE_COLLECT_PHP_STACK_COUNT)
+#endif
     PROFILER_DEFINE_STAGE(profiler_stage_collect_lbr_stack(ctx, state), METRIC_ERROR_STAGE_LBR_STACK_COUNT);
 
     PROFILER_DO_SAMPLE_COMMON_EPILOGUE;

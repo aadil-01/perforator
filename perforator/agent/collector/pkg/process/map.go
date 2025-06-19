@@ -610,6 +610,13 @@ func (a *processAnalyzer) registerMapping(m *dso.Mapping) {
 	a.exemappings = append(a.exemappings, m)
 }
 
+func mappedBinaryFromMapping(mapping *dso.Mapping) unwinder.MappedBinary {
+	return unwinder.MappedBinary{
+		Id:           unwinder.BinaryId(mapping.DSO.ID),
+		StartAddress: mapping.BaseAddress,
+	}
+}
+
 func (a *processAnalyzer) fillMappedBinaryInfo(pi *unwinder.ProcessInfo, mappings []*dso.Mapping) {
 	for _, m := range mappings {
 		if m.DSO == nil {
@@ -618,15 +625,11 @@ func (a *processAnalyzer) fillMappedBinaryInfo(pi *unwinder.ProcessInfo, mapping
 
 		switch m.DSO.BinaryClass {
 		case dso.PythonBinaryClass:
-			pi.PythonBinary = unwinder.MappedBinary{
-				Id:           unwinder.BinaryId(m.DSO.ID),
-				StartAddress: m.BaseAddress,
-			}
+			pi.PythonBinary = mappedBinaryFromMapping(m)
+		case dso.PhpBinaryClass:
+			pi.PhpBinary = mappedBinaryFromMapping(m)
 		case dso.PthreadGlibcBinaryClass:
-			pi.PthreadBinary = unwinder.MappedBinary{
-				Id:           unwinder.BinaryId(m.DSO.ID),
-				StartAddress: m.BaseAddress,
-			}
+			pi.PthreadBinary = mappedBinaryFromMapping(m)
 		}
 	}
 }

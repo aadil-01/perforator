@@ -102,6 +102,7 @@ type SymbolizerConfig struct {
 // except old ones.
 type FeatureFlagsConfig struct {
 	EnableJVM *bool `yaml:"enable_jvm"`
+	EnablePHP *bool `yaml:"enable_php"`
 }
 
 func (f *FeatureFlagsConfig) JVMEnabled() bool {
@@ -109,6 +110,13 @@ func (f *FeatureFlagsConfig) JVMEnabled() bool {
 		return false
 	}
 	return *f.EnableJVM
+}
+
+func (f *FeatureFlagsConfig) PhpEnabled() bool {
+	if f.EnablePHP == nil {
+		return false
+	}
+	return *f.EnablePHP
 }
 
 type Config struct {

@@ -80,6 +80,7 @@ type recordOptions struct {
 	disablePerfMap                bool
 	disablePerfMapJVM             bool
 	enableJVM                     bool
+	enablePHP                     bool
 }
 
 func (o *recordOptions) Bind(cmd *cobra.Command) {
@@ -107,6 +108,7 @@ func (o *recordOptions) Bind(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(&o.disablePerfMap, "disable-perf-maps", false, "Disable perf map")
 	cmd.Flags().BoolVar(&o.disablePerfMapJVM, "disable-perf-maps-jvm", false, "Disable perf map for JVM")
 	cmd.Flags().BoolVar(&o.enableJVM, "experimental-enable-jvm", false, "[Experimental feature] Enable JVM profiling")
+	cmd.Flags().BoolVar(&o.enablePHP, "experimental-enable-php", false, "[Experimental feature] Enable PHP profiling")
 
 	cmd.MarkFlagsMutuallyExclusive("freq", "count")
 
@@ -382,6 +384,7 @@ func runProfiler(ctx context.Context, logger xlog.Logger, opts *recordOptions, a
 		EnablePerfMapsJVM: ptr.Bool(!opts.disablePerfMapJVM),
 		FeatureFlagsConfig: config.FeatureFlagsConfig{
 			EnableJVM: ptr.Bool(opts.enableJVM),
+			EnablePHP: ptr.Bool(opts.enablePHP),
 		},
 	}, logger.WithContext(ctx), registry, profiler.WithStorage(storage))
 

@@ -1,4 +1,5 @@
 RECURSE(
     jvm
     python
+    php
 )

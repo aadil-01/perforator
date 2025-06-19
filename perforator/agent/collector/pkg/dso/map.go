@@ -14,6 +14,7 @@ import (
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/binary"
 	bpf "github.com/yandex/perforator/perforator/agent/collector/pkg/dso/bpf/binary"
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/dso/parser"
+	php_agent "github.com/yandex/perforator/perforator/internal/linguist/php/agent"
 	python_agent "github.com/yandex/perforator/perforator/internal/linguist/python/agent"
 	"github.com/yandex/perforator/perforator/pkg/xelf"
 	"github.com/yandex/perforator/perforator/pkg/xlog"
@@ -27,7 +28,7 @@ type dso struct {
 	// Unique ID of the DSO. It is used by eBPF.
 	ID uint64
 
-	// Type of the binary if it is special. (e.g. libpthread, python interpreter)
+	// Type of the binary if it is special. (e.g. libpthread, python, php interpreter)
 	BinaryClass BinaryClass
 
 	// Build info of the binary.
@@ -44,6 +45,7 @@ const (
 	DefaultBinaryClass BinaryClass = iota
 	PythonBinaryClass
 	PthreadGlibcBinaryClass
+	PhpBinaryClass
 )
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -323,6 +325,16 @@ func (d *Registry) populateDSO(ctx context.Context, dso *dso, f *os.File) {
 
 	if analysis.PythonConfig != nil {
 		dso.BinaryClass = PythonBinaryClass
+	}
+
+	if analysis.PhpConfig != nil && (!php_agent.IsVersionSupported(analysis.PhpConfig.Version) ||
+		!php_agent.IsSupportedZendVmKind(analysis.PhpConfig.ZendVmKind) ||
+		analysis.PhpConfig.ZtsEnabled) {
+		analysis.PhpConfig = nil
+	}
+
+	if analysis.PhpConfig != nil {
+		dso.BinaryClass = PhpBinaryClass
 	}
 
 	if analysis.PthreadConfig != nil {

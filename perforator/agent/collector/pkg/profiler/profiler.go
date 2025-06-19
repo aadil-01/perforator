@@ -213,6 +213,7 @@ func (p *Profiler) initialize(r metrics.Registry) (err error) {
 		r,
 		machine.Options{
 			EnableJVM: p.conf.FeatureFlagsConfig.JVMEnabled(),
+			EnablePHP: p.conf.FeatureFlagsConfig.PhpEnabled(),
 		},
 	)
 	if err != nil {
@@ -483,6 +484,10 @@ func (p *Profiler) setupConfig() error {
 	p.log.Info("Selected cgroup engine", log.String("engine", conf.ActiveCgroupEngine.String()))
 	if p.conf.FeatureFlagsConfig.JVMEnabled() {
 		conf.EnableJvm = true
+	}
+
+	if p.conf.FeatureFlagsConfig.PhpEnabled() {
+		conf.EnablePhp = true
 	}
 
 	// Record current pidns.
