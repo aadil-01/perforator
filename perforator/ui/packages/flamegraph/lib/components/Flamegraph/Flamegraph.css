@@ -3,6 +3,8 @@
     --flamegraph-block-spacing: 1px;
 
     font: 16px var(--flamegraph-font);
+    overflow-y: auto;
+    position: relative;
 }
 
 .flamegraph #profile {

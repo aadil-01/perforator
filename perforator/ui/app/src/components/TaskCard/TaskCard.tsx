@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { HelpPopover } from '@gravity-ui/components';
 import { ArrowUpRightFromSquare } from '@gravity-ui/icons';
-import { Button, Card, ClipboardButton, Icon, Link } from '@gravity-ui/uikit';
+import { Button, Card, ClipboardButton, Disclosure, Divider, Icon, Link } from '@gravity-ui/uikit';
 
 import { uiFactory } from 'src/factory';
 import type { MergeProfilesRequest, ProfileQuery } from 'src/generated/perforator/proto/perforator/perforator';
@@ -56,13 +56,13 @@ export const TaskCard: React.FC<TaskCardProps> = props => {
     }, [query, baselineQuery, diffQuery]);
 
     const querySelector = query?.Selector ? (
-        <Selector selector={query.Selector}/>
+        <Selector selector={query.Selector} />
     ) : null;
     const baselineSelector = baselineQuery?.Selector ? (
-        <Selector selector={baselineQuery.Selector}/>
+        <Selector selector={baselineQuery.Selector} />
     ) : null;
     const diffSelector = diffQuery?.Selector ? (
-        <Selector selector={diffQuery.Selector}/>
+        <Selector selector={diffQuery.Selector} />
     ) : null;
 
     const renderTraceLink = () => {
@@ -107,18 +107,20 @@ export const TaskCard: React.FC<TaskCardProps> = props => {
 
     return (
         <Card className="task-card">
-            <TaskButtons query={query} spec={spec} format={format} isDiff={isDiff}/>
-            <h2 className="task-card__title">Task {props.taskId}</h2>
-            <DefinitionList items={properties} />
-            <TaskProgress
-                state={state}
-                error={status?.Error || props.error?.toString()}
-            />
+            <Disclosure defaultExpanded summary={<h2 className="task-card__title"> Task {props.taskId}</h2>}>
+                <Divider orientation='horizontal' className="task-card__divider" />
+                <TaskButtons query={query} spec={spec} format={format} isDiff={isDiff} />
+                <DefinitionList items={properties} />
+                <TaskProgress
+                    state={state}
+                    error={status?.Error || props.error?.toString()}
+                />
+            </Disclosure>
         </Card>
     );
 };
 
-const Selector: React.FC<{selector: string}> = ({ selector }) => (
+const Selector: React.FC<{ selector: string }> = ({ selector }) => (
     <>
         <code className="task-card__selector">{selector}</code>
         <ClipboardButton className="task-card__button-copy" size="xs" text={selector} />
@@ -137,27 +139,27 @@ const getExecutor = ({ attempts }: { attempts?: TaskStatus['Attempts'] }) => {
             (
                 <HelpPopover tooltipClassName={'task-card__popover-content'} content={attempts.map(attempt => {
                     return (
-                        <div><Executor executor={attempt.Executor}/></div>
+                        <div><Executor executor={attempt.Executor} /></div>
                     );
-                })}/>
+                })} />
             )
             : null}
     </>;
 };
 
-const Executor: React.FC<{executor: string}> = ({ executor }) => {
+const Executor: React.FC<{ executor: string }> = ({ executor }) => {
     const href = uiFactory().makeExecutorLink(executor);
 
     return <>
         <code className="task-card__selector">{executor}</code>
         <ClipboardButton className="task-card__button-copy" size="xs" text={executor} />
         {href ? <Button size="xs" view={'flat'} href={href}>
-            <Icon size={12} data={ArrowUpRightFromSquare}/>
+            <Icon size={12} data={ArrowUpRightFromSquare} />
         </Button> : null}
     </>;
 };
 
-type TaskButtonsProps = {query: ProfileQuery | undefined; spec: MergeProfilesRequest | undefined; format: string | undefined; isDiff: boolean}
+type TaskButtonsProps = { query: ProfileQuery | undefined; spec: MergeProfilesRequest | undefined; format: string | undefined; isDiff: boolean }
 function TaskButtons({ format, isDiff, query, spec }: TaskButtonsProps) {
     const navigate = useNavigate();
     return <div className="task-card__buttons">

@@ -28,7 +28,7 @@ export interface TaskFlamegraphProps {
 }
 
 
-export type Tab = 'flame' | 'top'
+export type Tab = 'flame' | 'top' | 'sbs'
 
 export const TaskFlamegraph: React.FC<TaskFlamegraphProps> = (props) => {
     const isMounted = React.useRef(false);

@@ -85,45 +85,47 @@ type RenderFlamegraphType = (
     options: RenderFlamegraphOptions,
 ) => () => void;
 
+/**
+ * `Record<H, I[]>`
+ * keeps rendering borders for each level
+ * uses only pair [left, right]
+ * everything up the subtree is filled before rendering
+ * everything below the subtree is filled during render
+ */
+export type FramesWindow = Record<number, Interval>;
+
 export class FlamegraphOffseter {
     currentNodeCoords: Coordinate = [0, 0];
-    private rows: FormatNode[][];
+    rows: FormatNode[][];
 
-    /**
-     * `Record<H, I[]>`
-     * keeps rendering borders for each level
-     * uses only pair [left, right]
-     * everything up the subtree is filled before rendering
-     * everything below the subtree is filled during render
-     */
-    private framesWindow: Record<number, Interval>;
+
+    private framesWindow: FramesWindow;
     private canvasWidth: number | undefined;
     private widthRatio: number | undefined;
     private minVisibleEv: number | undefined;
     private reverse: boolean;
     private levelHeight: number;
     private shouldReverseDiff: boolean = false;
-    constructor(profileData: ProfileData, options: { reverse: boolean; levelHeight: number }) {
-        this.rows = profileData.rows;
-        this.framesWindow = this.fillFramesWindow([0, 0]);
+
+    constructor(rows: ProfileData['rows'], options: { reverse: boolean; levelHeight: number }) {
+        this.rows = rows;
         this.reverse = options.reverse;
         this.levelHeight = options.levelHeight;
     }
-
-    fillFramesWindow([hmax, imax]: Coordinate): Record<number, Interval> {
-        const res: Record<number, Interval> = [];
-        let nextParentIndex = imax;
-
-        for (let h = Math.min(hmax, this.rows.length - 1); h >= 0; h--) {
-            const row = this.rows[h];
-            res[h] = [nextParentIndex, nextParentIndex];
-            // will be assigned -1 on the last iteration (root)
-            // we do not care about it because it will not be assigned anywhere else
-            nextParentIndex = row[nextParentIndex].parentIndex;
+    fillFramesWindow([hmax, imax]: Coordinate): FramesWindow {
+            const res: Record<number, Interval> = [];
+            let nextParentIndex = imax;
+    
+            for (let h = Math.min(hmax, this.rows.length - 1); h >= 0; h--) {
+                const row = this.rows[h];
+                res[h] = [nextParentIndex, nextParentIndex];
+                // will be assigned -1 on the last iteration (root)
+                // we do not care about it because it will not be assigned anywhere else
+                nextParentIndex = row[nextParentIndex].parentIndex;
+            }
+    
+            return res;
         }
-
-        return res;
-    }
     createOffsetKeeper(h: number) {
         let prevParentIndex: number | null = null;
         let currentOffset = 0;
@@ -289,7 +291,14 @@ export class FlamegraphOffseter {
         }
     }
 
-    prerenderOffsets(canvasWidth: number, initialCoordinates: Coordinate, omittedOffsetCoordinates: Coordinate[] = [], keepFoundCoordinates: Coordinate[] | null = null, shouldReverseDiff: boolean = false) {
+    prerenderOffsets(
+        canvasWidth: number,
+        initialCoordinates: Coordinate,
+        omittedOffsetCoordinates: Coordinate[] = [],
+        keepFoundCoordinates: Coordinate[] | null = null,
+        shouldReverseDiff: boolean = false,
+        visitors: Array<{run: (node: FormatNode) => void}> = []
+    ) {
         this.clearOmittedEventCount();
         this.shouldReverseDiff = shouldReverseDiff;
         this.canvasWidth = canvasWidth;
@@ -313,6 +322,9 @@ export class FlamegraphOffseter {
                     continue;
                 }
                 updateFrameWindows(i);
+                for(let visitor of visitors){
+                    visitor.run(this.rows[h][i]);
+                }
                 const isVisible = this.visibleNode(this.rows[h][i]);
                 updateOffsets(i, isVisible);
 

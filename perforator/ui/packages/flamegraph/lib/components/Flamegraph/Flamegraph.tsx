@@ -7,6 +7,7 @@ import { Button, Icon, Switch } from '@gravity-ui/uikit';
 import { Hotkey } from '../Hotkey/Hotkey';
 import type { ProfileData } from '../../models/Profile';
 import type { UserSettings } from '../../models/UserSettings';
+import { cn } from '../../utils/cn';
 
 import type { ContextMenuProps, PopupData } from './ContextMenu';
 import { ContextMenu } from './ContextMenu';
@@ -20,6 +21,8 @@ import { GoToDefinitionHref } from '../../models/goto';
 import { GetStateFromQuery, SetStateFromQuery } from '../../query-utils';
 
 
+const b = cn('flamegraph');
+
 export interface FlamegraphProps {
     isDiff: boolean;
     theme: 'light' | 'dark';
@@ -30,9 +33,10 @@ export interface FlamegraphProps {
     onSuccess: ContextMenuProps['onSuccess']
     getState: GetStateFromQuery<QueryKeys>;
     setState: SetStateFromQuery<QueryKeys>;
+    className?: string;
 }
 
-export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSettings, profileData, goToDefinitionHref, onFinishRendering, onSuccess, getState: getQuery, setState: setQuery }) => {
+export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSettings, profileData, goToDefinitionHref, onFinishRendering, onSuccess, getState: getQuery, setState: setQuery, className }) => {
     const flamegraphContainer = React.useRef<HTMLDivElement | null>(null);
     const canvasRef = React.useRef<HTMLDivElement | null>(null);
     const [popupData, setPopupData] = useState<null | PopupData>(null);
@@ -48,7 +52,7 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                 return getComputedStyle(flamegraphContainer.current!).getPropertyValue(variable);
             };
             const levelHeight = parseInt(getCssVariable('--flamegraph-level-height')!);
-            flamegraphOffsets.current = new FlamegraphOffseter(profileData, { reverse, levelHeight });
+            flamegraphOffsets.current = new FlamegraphOffseter(profileData.rows, { reverse, levelHeight });
         }
     }, [profileData, reverse]);
 
@@ -158,7 +162,7 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
 
     return (
         <>
-            <div ref={flamegraphContainer} className="flamegraph">
+            <div ref={flamegraphContainer} className={b(null, className)}>
                 <RegexpDialog
                     showDialog={showDialog}
                     onCloseDialog={() => setShowDialog(false)}
@@ -167,7 +171,6 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                     initialExact={getQuery('exactMatch') === 'true'}
                 />
                 <div className="flamegraph__header">
-                    <h3 className="flamegraph__title">Flame Graph</h3>
                     <div className="flamegraph__buttons">
                         <Button className="flamegraph__button flamegraph__button_reverse" onClick={handleReverse}>
                             <Icon data={reverse ? BarsDescendingAlignLeftArrowDown : BarsAscendingAlignLeftArrowUp} /> Reverse
