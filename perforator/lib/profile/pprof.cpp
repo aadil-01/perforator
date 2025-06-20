@@ -302,7 +302,6 @@ private:
 
         OldKernelMappingId_ = oldKernelMappingId.GetOrElse(Max<ui64>());
         OldPythonMappingId_ = oldPythonMappingId.GetOrElse(Max<ui64>());
-        Cerr << "Found old python mapping id " << oldPythonMappingId << Endl;
     }
 
     void ConvertFunctions() {
@@ -336,7 +335,6 @@ private:
                 break;
 
             case ESpecialMappingKind::Python:
-                Cerr << "Found old python location " << location.id() << " -> " << location.mapping_id() << ": " << location.AsJSON() << Endl;
                 OldPythonLocationIds_.Insert(location.id());
                 break;
             }
