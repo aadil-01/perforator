@@ -100,6 +100,10 @@ ci:
                   secret_spec:
                     uuid: sec-01hdkn5jk9a2qbx4r18e7nmtjf
                     key: arcanum.api.token
+                - key: SANDBOX_TOKEN
+                  secret_spec:
+                    uuid: sec-01hdkn5jk9a2qbx4r18e7nmtjf
+                    key: sandbox.token
               cmd_line: |
                 export VERSION="${flow-vars.version}"
                 # Извлекаем первое число (до точки)
@@ -110,8 +114,9 @@ ci:
                 else
                   full_version="3.$VERSION"
                 fi
+                echo "$full_version" > "$RESULT_RESOURCES_PATH/proto_version"
 
-                ya maven-import "com.google.protobuf:protobuf-bom:$full_version" \
+                ya maven-import -t="$SANDBOX_TOKEN" "com.google.protobuf:protobuf-bom:$full_version" \
                                 "com.google.protobuf:protobuf-java-util:$full_version" \
                                 "com.google.protobuf:protobuf-javalite:$full_version" \
                                 "com.google.protobuf:protobuf-kotlin:$full_version" \
@@ -142,8 +147,6 @@ ci:
                 }
                 EOF
 
-                echo "$VERSION" > "$VERSION_DIR/version.txt"
-
                 arc add build/platform/java/protoc/resources.json build/conf/proto.conf contrib/java/com/google/protobuf
                 arc submit -m "Upload new protoc java $VERSION" >submit.log
 
@@ -166,6 +169,11 @@ ci:
 
               result_badges:
                 - path: pullrequest
+
+              result_output:
+                - path: pr_id
+                - path: pr_branch
+                - path: proto_version
 
         # TODO: add reference to pull request
         # TODO: wait for pull request
