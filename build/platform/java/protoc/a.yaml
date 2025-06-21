@@ -103,12 +103,12 @@ ci:
               cmd_line: |
                 export VERSION="${flow-vars.version}"
                 # Извлекаем первое число (до точки)
-                first_num=$(echo $a | cut -d"." -f1)
+                first_num=$(echo $VERSION | cut -d"." -f1)
                 # Проверяем условие
                 if [ "$first_num" -gt 25 ]; then
-                  full_version="4.$a"
+                  full_version="4.$VERSION"
                 else
-                  full_version="3.$a"
+                  full_version="3.$VERSION"
                 fi
 
                 ya maven-import "com.google.protobuf:protobuf-bom:$full_version" \
