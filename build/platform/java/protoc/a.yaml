@@ -122,8 +122,8 @@ ci:
                                 "com.google.protobuf:protobuf-kotlin:$full_version" \
                                 "com.google.protobuf:protobuf-parent:$full_version"
 
-                sed -i "s/JAVA_PROTO_COMPILER_VERSION\s*=\s*\d+\.\d+\.\d+/JAVA_PROTO_COMPILER_VERSION = $full_version" "$ARCADIA_PATH/build/conf/proto.conf"
-                sed -i "s/JAVA_PROTO_RUNTIME_VERSION\s*=\s*\d+\.\d+\.\d+/JAVA_PROTO_RUNTIME_VERSION = $full_version" "$ARCADIA_PATH/build/conf/proto.conf"
+                sed -i "s/JAVA_PROTO_COMPILER_VERSION\s*=\s*\d+\.\d+\.\d+/JAVA_PROTO_COMPILER_VERSION = $full_version/" "$ARCADIA_PATH/build/conf/proto.conf"
+                sed -i "s/JAVA_PROTO_RUNTIME_VERSION\s*=\s*\d+\.\d+\.\d+/JAVA_PROTO_RUNTIME_VERSION = $full_version/" "$ARCADIA_PATH/build/conf/proto.conf"
 
                 cat << EOF > "$ARCADIA_PATH/build/platform/java/protoc/resources.json"
                 {
