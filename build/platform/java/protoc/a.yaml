@@ -111,11 +111,11 @@ ci:
                   full_version="3.$a"
                 fi
 
-                ya maven-import "com.google.protobuf:protobuf-bom:full_version" \
-                                "com.google.protobuf:protobuf-java-util:full_version" \
-                                "com.google.protobuf:protobuf-javalite:full_version" \
-                                "com.google.protobuf:protobuf-kotlin:full_version" \
-                                "com.google.protobuf:protobuf-parent:full_version"
+                ya maven-import "com.google.protobuf:protobuf-bom:$full_version" \
+                                "com.google.protobuf:protobuf-java-util:$full_version" \
+                                "com.google.protobuf:protobuf-javalite:$full_version" \
+                                "com.google.protobuf:protobuf-kotlin:$full_version" \
+                                "com.google.protobuf:protobuf-parent:$full_version"
 
                 sed -i "s/JAVA_PROTO_COMPILER_VERSION\s*=\s*\d+\.\d+\.\d+/JAVA_PROTO_COMPILER_VERSION = $full_version" "$ARCADIA_PATH/build/conf/proto.conf"
                 sed -i "s/JAVA_PROTO_RUNTIME_VERSION\s*=\s*\d+\.\d+\.\d+/JAVA_PROTO_RUNTIME_VERSION = $full_version" "$ARCADIA_PATH/build/conf/proto.conf"
