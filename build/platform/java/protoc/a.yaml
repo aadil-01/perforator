@@ -116,7 +116,7 @@ ci:
                 fi
                 echo "$full_version" > "$RESULT_RESOURCES_PATH/proto_version"
 
-                ya maven-import -t="$SANDBOX_TOKEN" "com.google.protobuf:protobuf-bom:$full_version" \
+                ya maven-import -s="${context.flow_triggered_by}" -t="$SANDBOX_TOKEN" "com.google.protobuf:protobuf-bom:$full_version" \
                                 "com.google.protobuf:protobuf-java-util:$full_version" \
                                 "com.google.protobuf:protobuf-javalite:$full_version" \
                                 "com.google.protobuf:protobuf-kotlin:$full_version" \
