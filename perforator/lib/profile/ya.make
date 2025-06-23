@@ -3,6 +3,7 @@ LIBRARY()
 SRCS(
     builder.cpp
     merge.cpp
+    merge_manager.cpp
     parallel_merge.cpp
     pprof.cpp
     profile.cpp

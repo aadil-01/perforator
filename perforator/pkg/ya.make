@@ -2,6 +2,7 @@ RECURSE(
     atomicfs
     certifi
     clickhouse
+    cprofile
     debuginfod
     disjointsegmentsets
     endpointsetresolver

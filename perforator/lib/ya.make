@@ -5,6 +5,7 @@ RECURSE(
     permutation
     php
     profile
+    profile/c
     pthread
     python
     tls
