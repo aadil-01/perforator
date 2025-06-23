@@ -14,6 +14,7 @@
 #include <util/digest/city.h>
 #include <util/digest/multi.h>
 #include <util/generic/bitops.h>
+#include <util/generic/cast.h>
 #include <util/generic/function_ref.h>
 #include <util/generic/hash_set.h>
 #include <util/generic/maybe.h>
@@ -109,7 +110,7 @@ template <CStrongIndex Index>
 class TIndexedEntityRemapping {
 public:
     struct TRemappedIndex {
-        size_t OldPosition = 0;
+        ui32 OldPosition = 0;
         Index NewIndex = Index::Invalid();
 
         bool operator==(const TRemappedIndex& rhs) const = default;
@@ -119,7 +120,7 @@ public:
     explicit TIndexedEntityRemapping(size_t sizeHint)
         : Mapping_{Max<size_t>(sizeHint + 10, 1024)}
     {
-        Add(0ul, Max<size_t>(), Index::Zero());
+        Add(0ul, Max<ui32>(), Index::Zero());
     }
 
     bool IsEmpty() const {
@@ -127,7 +128,7 @@ public:
         return Mapping_.Size() == 1;
     }
 
-    void Add(TExplicitType<ui64> oldIndex, TExplicitType<size_t> oldPosition, Index newIndex) {
+    void Add(TExplicitType<ui64> oldIndex, TExplicitType<ui32> oldPosition, Index newIndex) {
         // Protobuf message size must not exceed 2GiB,
         // so indices into repeated fields must fit into signed 32-bit number.
         // We abuse this knowledge to reduce size of parsed profile in memory.
@@ -288,7 +289,7 @@ private:
             auto builder = Builder_.AddBinary();
             builder.SetBuildId(ConvertString(mapping.build_id()));
             builder.SetPath(ConvertString(mapping.filename()));
-            BinaryMapping_.Add(mapping.id(), i, builder.Finish());
+            BinaryMapping_.Add(mapping.id(), IntegerCast<ui32>(i), builder.Finish());
 
             if (OldProfile_.string_table(mapping.filename()) == KernelSpecialMapping) {
                 Y_ENSURE(!oldKernelMappingId, "Found more than one kernel mapping");
@@ -315,7 +316,7 @@ private:
             builder.SetSystemName(ConvertString(function.system_name()));
             builder.SetFileName(ConvertString(function.filename()));
             builder.SetStartLine(function.start_line());
-            FunctionMapping_.Add(function.id(), i, builder.Finish());
+            FunctionMapping_.Add(function.id(), IntegerCast<ui32>(i), builder.Finish());
         }
     }
 
@@ -362,7 +363,7 @@ private:
             }
             frame.SetInlineChain(chain.Finish());
 
-            LocationMapping_.Add(location.id(), i, frame.Finish());
+            LocationMapping_.Add(location.id(), IntegerCast<ui32>(i), frame.Finish());
         }
     }
 
