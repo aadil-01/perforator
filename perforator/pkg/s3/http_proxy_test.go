@@ -83,7 +83,7 @@ func TestSimple(t *testing.T) {
 		case <-ctx.Done():
 			return errDone
 		}
-		dp, err := newDynamicProxy(ctx, logger, mock.NewRegistry(nil), &DynamicHTTPProxyConfig{
+		dp, err := newDynamicProxy(ctx, ctx, logger, mock.NewRegistry(nil), &DynamicHTTPProxyConfig{
 			UpdateInterval:        time.Second,
 			Kind:                  dynamicHTTPProxyKindHostname,
 			ConfigurationEndpoint: fmt.Sprintf("http://localhost:%d/proxy", port),
@@ -120,7 +120,7 @@ func TestUpdate(t *testing.T) {
 		case <-ctx.Done():
 			return errDone
 		}
-		dp, err := newDynamicProxy(ctx, logger, mock.NewRegistry(nil), &DynamicHTTPProxyConfig{
+		dp, err := newDynamicProxy(ctx, ctx, logger, mock.NewRegistry(nil), &DynamicHTTPProxyConfig{
 			UpdateInterval:        time.Second,
 			Kind:                  dynamicHTTPProxyKindHostname,
 			ConfigurationEndpoint: fmt.Sprintf("http://localhost:%d/proxy", port),
@@ -167,7 +167,7 @@ func TestE2E(t *testing.T) {
 		if !assert.NoError(t, err) {
 			return errDone
 		}
-		client, err := NewClient(ctx, logger, &Config{
+		client, err := NewClient(ctx, ctx, logger, &Config{
 			Endpoint:     "yandex.net",
 			SecretKeyEnv: "SOMEVAR",
 			AccessKeyEnv: "SOMEVAR",

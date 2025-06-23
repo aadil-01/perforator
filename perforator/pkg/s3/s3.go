@@ -136,8 +136,8 @@ func addRetryObserver(s3Client *s3.S3, registry metrics.Registry) {
 	})
 }
 
-// NewClient creates a new S3 client. Provided context should be valid while client is in use.
-func NewClient(ctx context.Context, logger xlog.Logger, c *Config, reg metrics.Registry) (*s3.S3, error) {
+// NewClient creates a new S3 client. `refreshCtx` should be valid while client is in use.
+func NewClient(ctx context.Context, refreshCtx context.Context, logger xlog.Logger, c *Config, reg metrics.Registry) (*s3.S3, error) {
 	c.fillDefault()
 
 	secretKey, err := loadKey(c.SecretKeyPath, c.SecretKeyEnv)
@@ -170,7 +170,7 @@ func NewClient(ctx context.Context, logger xlog.Logger, c *Config, reg metrics.R
 	}
 	var proxy *dynamicProxy
 	if c.DynamicHTTPProxy != nil {
-		proxy, err = newDynamicProxy(ctx, logger, reg.WithPrefix("s3.client.dynamic_http_proxy"), c.DynamicHTTPProxy)
+		proxy, err = newDynamicProxy(ctx, refreshCtx, logger, reg.WithPrefix("s3.client.dynamic_http_proxy"), c.DynamicHTTPProxy)
 		if err != nil {
 			return nil, fmt.Errorf("failed to setup dynamic HTTP proxy: %w", err)
 		}

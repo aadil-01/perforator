@@ -37,22 +37,24 @@ type StorageBundle struct {
 	AgentTasksStorage asynctask.TaskService
 }
 
-func NewStorageBundleFromConfig(ctx context.Context, l xlog.Logger, reg metrics.Registry, configPath string) (*StorageBundle, error) {
+// bgCtx should be valid for as long as databases are used
+func NewStorageBundleFromConfig(ctx context.Context, bgCtx context.Context, l xlog.Logger, reg metrics.Registry, configPath string) (*StorageBundle, error) {
 	conf, err := ParseConfig(configPath, false /* strict */)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 
-	return NewStorageBundle(ctx, l, reg, conf)
+	return NewStorageBundle(ctx, bgCtx, l, reg, conf)
 }
 
-func NewStorageBundle(ctx context.Context, l xlog.Logger, reg metrics.Registry, c *Config) (*StorageBundle, error) {
+// bgCtx should be valid for as long as databases are used
+func NewStorageBundle(ctx context.Context, bgCtx context.Context, l xlog.Logger, reg metrics.Registry, c *Config) (*StorageBundle, error) {
 	res := &StorageBundle{
 		conf: c,
 	}
 	var err error
 
-	res.DBs, err = databases.NewDatabases(ctx, l, &c.DBs, reg)
+	res.DBs, err = databases.NewDatabases(ctx, bgCtx, l, &c.DBs, reg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init dbs: %w", err)
 	}

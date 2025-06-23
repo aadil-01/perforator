@@ -23,12 +23,13 @@ type Databases struct {
 	S3Client *s3.S3
 }
 
-func NewDatabases(ctx context.Context, l xlog.Logger, c *Config, reg metrics.Registry) (*Databases, error) {
+// bgCtx should be valid for as long as databases are used
+func NewDatabases(ctx context.Context, bgCtx context.Context, l xlog.Logger, c *Config, reg metrics.Registry) (*Databases, error) {
 	res := &Databases{}
 	var err error
 
 	if c.S3Config != nil {
-		res.S3Client, err = s3client.NewClient(ctx, l, c.S3Config, reg)
+		res.S3Client, err = s3client.NewClient(ctx, bgCtx, l, c.S3Config, reg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to init s3: %w", err)
 		}

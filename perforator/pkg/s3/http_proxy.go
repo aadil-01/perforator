@@ -43,6 +43,7 @@ type dynamicProxy struct {
 	errChan        chan struct{}
 	currentProxyMu sync.RWMutex
 	currentProxy   *url.URL
+	canceled       bool
 
 	periodicUpdates      metrics.Counter
 	periodicUpdateErrors metrics.Counter
@@ -54,6 +55,9 @@ type dynamicProxy struct {
 func (dp *dynamicProxy) proxy() *url.URL {
 	dp.currentProxyMu.RLock()
 	defer dp.currentProxyMu.RUnlock()
+	if dp.canceled {
+		dp.logger.Warn(context.TODO(), "Using http proxy after updater shutdown")
+	}
 	return dp.currentProxy
 }
 
@@ -91,6 +95,10 @@ func (dp *dynamicProxy) updateLoop(ctx context.Context, updateInterval time.Dura
 		var err error
 		select {
 		case <-ctx.Done():
+			dp.logger.Debug(ctx, "Stopping http proxy background update")
+			dp.currentProxyMu.Lock()
+			dp.canceled = true
+			dp.currentProxyMu.Unlock()
 			return
 		case <-ticker:
 			dp.logger.Debug(ctx, "Starting periodic http proxy configuration update")
@@ -137,7 +145,7 @@ func (dp *dynamicProxy) onError() {
 	}
 }
 
-func newDynamicProxy(ctx context.Context, logger xlog.Logger, reg metrics.Registry, conf *DynamicHTTPProxyConfig) (*dynamicProxy, error) {
+func newDynamicProxy(ctx context.Context, refreshCtx context.Context, logger xlog.Logger, reg metrics.Registry, conf *DynamicHTTPProxyConfig) (*dynamicProxy, error) {
 	if conf.UpdateInterval <= 0 {
 		return nil, errors.New("update_interval must be positive")
 	}
@@ -182,6 +190,6 @@ func newDynamicProxy(ctx context.Context, logger xlog.Logger, reg metrics.Regist
 	if err != nil {
 		return nil, fmt.Errorf("failed to get initial proxy configuration: %w", err)
 	}
-	go dp.updateLoop(ctx, conf.UpdateInterval, int(conf.MaxErrorUpdates))
+	go dp.updateLoop(refreshCtx, conf.UpdateInterval, int(conf.MaxErrorUpdates))
 	return dp, nil
 }

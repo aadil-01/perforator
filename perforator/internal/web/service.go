@@ -173,7 +173,7 @@ func getFileFromS3AndWrite(w http.ResponseWriter, client *s3.S3, bucket, key str
 }
 
 func s3Handler(ctx context.Context, logger xlog.Logger, cfg *Config) (http.HandlerFunc, error) {
-	s3Client, err := s3client.NewClient(ctx, logger, cfg.S3Config, &nop.Registry{})
+	s3Client, err := s3client.NewClient(ctx, ctx, logger, cfg.S3Config, &nop.Registry{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to init s3: %w", err)
 	}

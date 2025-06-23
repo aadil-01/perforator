@@ -663,7 +663,11 @@ func NewStorageServer(
 
 	initCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 	defer cancel()
-	storageBundle, err := bundle.NewStorageBundle(initCtx, logger, registry, &conf.StorageConfig)
+
+	// TODO: this context should be tied to e.g. Run() duration.
+	bgCtx := context.TODO()
+
+	storageBundle, err := bundle.NewStorageBundle(initCtx, bgCtx, logger, registry, &conf.StorageConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create storage bundle: %w", err)
 	}

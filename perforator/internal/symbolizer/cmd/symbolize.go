@@ -122,7 +122,11 @@ var (
 
 			initCtx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
 			defer cancel()
-			bundle, err := bundle.NewStorageBundleFromConfig(initCtx, logger, &nop.Registry{}, configPath)
+
+			// TODO: this context should be tied to e.g. Run() duration.
+			bgCtx := context.TODO()
+
+			bundle, err := bundle.NewStorageBundleFromConfig(initCtx, bgCtx, logger, &nop.Registry{}, configPath)
 			if err != nil {
 				return err
 			}
