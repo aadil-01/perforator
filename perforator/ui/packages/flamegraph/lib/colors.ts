@@ -98,7 +98,7 @@ export function hsv2hsl(h: number, s: number, v: number) {
 }
 
 
-export function diffcolor(node: FormatNode, root: FormatNode, reverse?: boolean) {
+export function diffcolor(node: FormatNode, root: FormatNode, reverse?: boolean): string {
     const lhs = node.eventCount;
     const rhs = root.baseEventCount && root.baseEventCount > 1e-5
         ? (node.baseEventCount ?? 0) * root.eventCount / root.baseEventCount

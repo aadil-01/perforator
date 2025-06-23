@@ -774,19 +774,16 @@ export const renderFlamegraph: RenderFlamegraphType = (
     };
 
     function calcHighlightColor(node: FormatNode) {
-        const parsedColor = isDiff ? diffcolor(node, root) : node.color!;
+        const parsedColor = isDiff ? calculateDiffColor(node, root) : node.color as string;
 
-        let newColor: string | null = null;
-        if (theme === 'dark') {
-            newColor = darken(parsedColor as string, 0.2);
-        }
+        let color: string | null = null
         // currently we calculate diff color on the fly during render
         // highlight is 0.4 darker than default color
         // but for non-diffs the node.color is already darkened by 0.2 so 0.2 is enough
         if (theme === 'dark' && isDiff) {
-            newColor = darken(parsedColor as string, 0.2);
+            color = darken(parsedColor as string, 0.2);
         }
-        return newColor;
+        return color;
     }
     canvas.onclick = handleClick;
 
