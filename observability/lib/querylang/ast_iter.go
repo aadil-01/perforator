@@ -2,6 +2,8 @@ package querylang
 
 import (
 	"fmt"
+
+	"github.com/yandex/perforator/observability/lib/querylang/operator"
 )
 
 func (f *Selector) IsEmpty() bool {
@@ -82,4 +84,77 @@ func (f *Selector) ReplaceConditionValue(field string, oldValue Value, newValues
 			matcher.Conditions = append(matcher.Conditions, newConditions...)
 		}
 	}
+}
+
+// CandidateValues returns a superset of values for each field in Selector.
+// If result[field] is nil then the function failed to find a superset of
+// values.
+// If result[field] is empty slice, then the answer is empty set.
+// If result[field] not exists, then there's no such field in Selector.
+func (f *Selector) CandidateValues() map[string][]Value {
+	result := make(map[string][]Value)
+
+	// Find starting set
+	for _, m := range f.Matchers {
+		if len(result[m.Field]) != 0 {
+			continue
+		}
+		result[m.Field] = extractValuesFromMatcher(m)
+	}
+
+	// Filter values
+	for _, m := range f.Matchers {
+		if len(result[m.Field]) == 0 {
+			continue
+		}
+		filtered := make([]Value, 0, len(result[m.Field]))
+		for _, v := range result[m.Field] {
+			if matches(v, m) {
+				filtered = append(filtered, v)
+			}
+		}
+		result[m.Field] = filtered
+	}
+
+	return result
+}
+
+func matches(value Value, m *Matcher) bool {
+	processed := 0
+	matched := 0
+	notMatched := 0
+	for _, cond := range m.Conditions {
+		if cond.Operator != operator.Eq {
+			continue
+		}
+		processed++
+		isMatching := value.Repr() == cond.Value.Repr()
+		if cond.Inverse {
+			isMatching = !isMatching
+		}
+		if isMatching {
+			matched++
+		} else {
+			notMatched++
+		}
+	}
+
+	switch m.Operator {
+	case AND:
+		return notMatched == 0
+	case OR:
+		return matched > 0 || processed == 0
+	}
+	return false
+}
+
+func extractValuesFromMatcher(m *Matcher) (candidates []Value) {
+	for _, cond := range m.Conditions {
+		if !cond.IsStrictEq() {
+			return nil
+		}
+		candidates = append(candidates, cond.Value)
+	}
+
+	return
 }
