@@ -5,12 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
 	"github.com/klauspost/compress/zstd"
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/sync/semaphore"
 
 	"github.com/yandex/perforator/library/go/core/log"
@@ -23,13 +21,6 @@ import (
 
 var _ storage.Storage = (*ProfileStorage)(nil)
 var _ Storage = (*ProfileStorage)(nil)
-
-// Sometimes we request a lot of profiles from the storage, and profiles from different services
-// might drastically differ in size. For example, a service instance running on 4000%CPU could
-// generate ~x6 more profile data than a service instance running on 700%.
-// We can't really know upfront whether N profiles would fit in memory, so this limit acts as
-// "16Gb of profiling data should be enough for everyone".
-const DefaultBatchDownloadTotalSizeSoftLimit uint64 = 16 * 1024 * 1024 * 1024
 
 type ProfileStorage struct {
 	MetaStorage meta.Storage
@@ -52,17 +43,6 @@ func (s *ProfileStorage) putBlob(ctx context.Context, id string, bytes []byte) e
 
 	_, err = writer.Commit()
 	return err
-}
-
-func (s *ProfileStorage) getBlob(ctx context.Context, key string) ([]byte, error) {
-	buf := util.NewWriteAtBuffer(nil)
-
-	err := s.BlobStorage.Get(ctx, string(key), buf)
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
 }
 
 // implements profilestorage.Storage
@@ -136,72 +116,6 @@ func uncompressIfNeeded(bytes []byte, compression string) ([]byte, error) {
 	return bytes, nil
 }
 
-func (s *ProfileStorage) fillProfileBlobFields(ctx context.Context, profile *Profile) error {
-	var err error
-
-	profile.Body, err = s.getBlob(ctx, profile.Meta.ID)
-	if err != nil {
-		return err
-	}
-
-	codec := profile.Meta.Attributes[CompressionLabel]
-	profile.Body, err = uncompressIfNeeded(profile.Body, codec)
-	if err != nil {
-		return fmt.Errorf(
-			"failed to uncompress profile %s, compression `%s`: %w",
-			profile.Meta.ID,
-			codec,
-			err,
-		)
-	}
-
-	return nil
-}
-
-func (s *ProfileStorage) downloadProfileBlobs(ctx context.Context, profiles []*Profile, batchDownloadTotalSizeSoftLimit uint64) error {
-	var downloadedSizeApprox atomic.Uint64
-	var droppedProfilesCount atomic.Uint64
-
-	g, ctx := errgroup.WithContext(ctx)
-	for _, profile := range profiles {
-		profileCopy := profile
-		g.Go(func() error {
-			err := s.downloadSemaphore.Acquire(ctx, 1)
-			if err != nil {
-				return err
-			}
-			defer s.downloadSemaphore.Release(1)
-
-			if downloadedSizeApprox.Load() >= batchDownloadTotalSizeSoftLimit {
-				droppedProfilesCount.Add(1)
-				return nil
-			}
-
-			err = s.fillProfileBlobFields(ctx, profileCopy)
-			noExistErr := &blob.ErrNoExist{}
-			if err != nil && !errors.As(err, &noExistErr) {
-				return err
-			}
-
-			downloadedSizeApprox.Add(uint64(len(profileCopy.Body)))
-
-			return nil
-		})
-	}
-
-	droppedProfiles := droppedProfilesCount.Load()
-	if droppedProfiles != 0 {
-		s.log.Warn(
-			ctx,
-			"Some profiles were not loaded due to memory limits",
-			log.UInt64("droppedProfiles", droppedProfiles),
-			log.UInt64("downloadedSize", downloadedSizeApprox.Load()),
-		)
-	}
-
-	return g.Wait()
-}
-
 func validateFiltersProfileQuery(q *meta.ProfileQuery) error {
 	if len(q.Selector.Matchers) == 0 {
 		return errors.New("at least one filter must be set: node id, pod id, build id, cpu, profile id or service")
@@ -210,12 +124,24 @@ func validateFiltersProfileQuery(q *meta.ProfileQuery) error {
 	return nil
 }
 
-func (s *ProfileStorage) doSelectProfiles(
-	ctx context.Context,
-	filters *meta.ProfileQuery,
-	onlyMetadata bool,
-	batchDownloadTotalSizeSoftLimit uint64,
-) ([]*Profile, error) {
+func (s *ProfileStorage) getBlob(ctx context.Context, key meta.ProfileID) (ProfileData, error) {
+	if err := s.downloadSemaphore.Acquire(ctx, 1); err != nil {
+		return nil, err
+	}
+	defer s.downloadSemaphore.Release(1)
+
+	buf := util.NewWriteAtBuffer(nil)
+
+	err := s.BlobStorage.Get(ctx, string(key), buf)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+// implements profilestorage.Storage
+func (s *ProfileStorage) SelectProfiles(ctx context.Context, filters *meta.ProfileQuery) ([]*meta.ProfileMetadata, error) {
 	s.log.Debug(ctx,
 		"Select profiles",
 		log.String("selector", filters.Selector.Repr()),
@@ -234,59 +160,23 @@ func (s *ProfileStorage) doSelectProfiles(
 		return nil, err
 	}
 
-	result := make([]*Profile, 0, len(metas))
-	for _, meta := range metas {
-		result = append(result, &Profile{Meta: meta})
-	}
-
-	if onlyMetadata {
-		return result, nil
-	}
-
-	err = s.downloadProfileBlobs(ctx, result, batchDownloadTotalSizeSoftLimit)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return metas, nil
 }
 
 // implements profilestorage.Storage
-func (s *ProfileStorage) SelectProfiles(ctx context.Context, filters *meta.ProfileQuery, onlyMetadata bool) ([]*Profile, error) {
-	return s.doSelectProfiles(ctx, filters, onlyMetadata, DefaultBatchDownloadTotalSizeSoftLimit)
-}
-
-// implements profilestorage.Storage
-func (s *ProfileStorage) SelectProfilesLimited(
-	ctx context.Context,
-	filters *meta.ProfileQuery,
-	batchDownloadTotalSizeSoftLimit uint64,
-) ([]*Profile, error) {
-	return s.doSelectProfiles(ctx, filters, false /* onlyMetadata */, batchDownloadTotalSizeSoftLimit)
-}
-
-// implements profilestorage.Storage
-func (s *ProfileStorage) GetProfiles(ctx context.Context, profileIDs []meta.ProfileID, onlyMetadata bool) ([]*Profile, error) {
-	metas, err := s.MetaStorage.GetProfiles(ctx, profileIDs)
+func (s *ProfileStorage) FetchProfile(ctx context.Context, meta *meta.ProfileMetadata) (ProfileData, error) {
+	data, err := s.getBlob(ctx, meta.ID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch profile %q blob: %w", meta.ID, err)
 	}
 
-	res := make([]*Profile, 0, len(profileIDs))
-	for _, meta := range metas {
-		res = append(res, &Profile{Meta: meta})
-	}
-
-	if onlyMetadata {
-		return res, nil
-	}
-
-	err = s.downloadProfileBlobs(ctx, res, DefaultBatchDownloadTotalSizeSoftLimit)
+	codec := meta.Attributes[CompressionLabel]
+	data, err = uncompressIfNeeded(data, codec)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to uncompress profile %s, compression `%s`: %w", meta.ID, codec, err)
 	}
 
-	return res, nil
+	return data, nil
 }
 
 // implements profilestorage.Storage

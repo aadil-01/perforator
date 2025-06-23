@@ -16,6 +16,7 @@ import (
 	"github.com/yandex/perforator/perforator/internal/symbolizer/binaryprovider/downloader"
 	"github.com/yandex/perforator/perforator/internal/symbolizer/symbolize"
 	"github.com/yandex/perforator/perforator/pkg/must"
+	"github.com/yandex/perforator/perforator/pkg/profilequerylang"
 	"github.com/yandex/perforator/perforator/pkg/storage/bundle"
 	"github.com/yandex/perforator/perforator/pkg/storage/profile/meta"
 	"github.com/yandex/perforator/perforator/pkg/xlog"
@@ -154,15 +155,32 @@ var (
 			}
 			defer symbolizer.Destroy()
 
-			storageProfile, err := bundle.ProfileStorage.GetProfiles(context.Background(), []meta.ProfileID{profileID}, false)
+			ctx := context.Background()
+
+			selector, err := profilequerylang.ParseSelector(fmt.Sprintf(`{id="%s"}`, profileID))
 			if err != nil {
 				return err
 			}
-			if len(storageProfile) == 0 {
+
+			profiles, err := bundle.ProfileStorage.SelectProfiles(ctx, &meta.ProfileQuery{
+				Selector: selector,
+			})
+			if err != nil {
+				return err
+			}
+			if len(profiles) < 1 {
+				return fmt.Errorf("unknown profile %s", profileID)
+			}
+
+			data, err := bundle.ProfileStorage.FetchProfile(ctx, profiles[0])
+			if err != nil {
+				return err
+			}
+			if len(data) == 0 {
 				return fmt.Errorf("profile `%s` cannot be found in storage", profileID)
 			}
 
-			profile, err := pprof.ParseData(storageProfile[0].Body)
+			profile, err := pprof.ParseData(data)
 			if err != nil {
 				return err
 			}
