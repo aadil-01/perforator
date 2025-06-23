@@ -5,6 +5,7 @@ RECURSE(
     cprofile
     debuginfod
     disjointsegmentsets
+    ebpf
     endpointsetresolver
     env
     foreach
