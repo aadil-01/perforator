@@ -163,13 +163,13 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
     return (
         <>
             <div ref={flamegraphContainer} className={b(null, className)}>
-                <RegexpDialog
+                {showDialog && <RegexpDialog
                     showDialog={showDialog}
                     onCloseDialog={() => setShowDialog(false)}
                     onSearchUpdate={handleSearchUpdate}
                     initialSearch={search}
                     initialExact={getQuery('exactMatch') === 'true'}
-                />
+                />}
                 <div className="flamegraph__header">
                     <div className="flamegraph__buttons">
                         <Button className="flamegraph__button flamegraph__button_reverse" onClick={handleReverse}>

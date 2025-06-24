@@ -84,6 +84,17 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ popupData, anchorRef, 
                     </Menu.Item>}
                 </CopyToClipboard>
             ) : null}
+            <Menu.Item 
+            {...commonButtonProps} 
+            onClick={() => {
+                setQuery({
+                    exactMatch: 'true',
+                    flamegraphQuery: popupData.node.textId,
+                });
+                onClosePopup();
+            }}>
+                Find similar nodes
+            </Menu.Item>
             <Menu.Group>
                 <Menu.Item
                     {...commonButtonProps}
