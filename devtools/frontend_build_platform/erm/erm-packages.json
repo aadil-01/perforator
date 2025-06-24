@@ -2009,6 +2009,31 @@
       "Release schedule": "https://github.com/nodejs/Release#release-schedule"
     },
     "versions": {
+      "24.2.0": {
+        "add_date": "2025-06-24T05:32:09",
+        "resources": [
+          {
+            "id": 9040977908,
+            "platform": "linux",
+            "arch": "x64"
+          },
+          {
+            "id": 9040979408,
+            "platform": "linux",
+            "arch": "arm64"
+          },
+          {
+            "id": 9040981601,
+            "platform": "darwin",
+            "arch": "x64"
+          },
+          {
+            "id": 9040982994,
+            "platform": "darwin",
+            "arch": "arm64"
+          }
+        ]
+      },
       "24.1.0": {
         "add_date": "2025-06-03T05:40:50",
         "resources": [
