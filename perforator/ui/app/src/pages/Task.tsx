@@ -39,12 +39,12 @@ export const Task: Page = props => {
     };
 
     React.useEffect(() => {
-        getTask();
-
         // @ts-ignore
         pollingInterval.current = setInterval(() => {
             getTask();
         }, POLLING_PERIOD);
+
+        getTask();
 
         return () => { clearInterval(pollingInterval.current); };
     }, [taskId]);
