@@ -780,7 +780,7 @@ export const renderFlamegraph: RenderFlamegraphType = (
         // currently we calculate diff color on the fly during render
         // highlight is 0.4 darker than default color
         // but for non-diffs the node.color is already darkened by 0.2 so 0.2 is enough
-        if (theme === 'dark' && isDiff) {
+        if (theme === 'dark') {
             color = darken(parsedColor as string, 0.2);
         }
         return color;
