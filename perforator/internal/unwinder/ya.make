@@ -10,13 +10,13 @@ PEERDIR(
 RUN_PROGRAM(
     perforator/ebpf/tools/btf2go
     -elf
-    perforator/agent/collector/progs/unwinder.debug.php.elf
+    perforator/agent/collector/progs/unwinder.debug.elf
     -package
     unwinder
     -output
     unwinder.go
     IN
-    perforator/agent/collector/progs/unwinder.debug.php.elf
+    perforator/agent/collector/progs/unwinder.debug.elf
     OUT
     unwinder.go
 )
