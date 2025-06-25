@@ -12,6 +12,7 @@ SRCS(
     hsv.go
     render.go
     strtab.go
+    text_format.go
 )
 IF (NOT OPENSOURCE)
     GO_TEST_SRCS(
@@ -20,6 +21,8 @@ IF (NOT OPENSOURCE)
     )
     GO_XTEST_SRCS(render_test.go)
 ENDIF()
+
+GO_TEST_SRCS(text_format_test.go)
 
 GO_EMBED_PATTERN(tmpl.html)
 GO_EMBED_PATTERN(new_templ.html)

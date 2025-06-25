@@ -577,13 +577,13 @@ func bindFlamegraphRenderOptions(flags *pflag.FlagSet, options *client.Flamegrap
 	addressRenderPolicy := xpflag.NewFunc(func(val string) error {
 		switch render.AddressRenderPolicy(val) {
 		case render.RenderAddressesNever:
-			options.RenderAddresses = ptr.T(proto.FlamegraphOptions_RenderAddressesNever)
+			options.RenderAddresses = ptr.T(proto.AddressRenderPolicy_RenderAddressesNever)
 			return nil
 		case render.RenderAddressesUnsymbolized:
-			options.RenderAddresses = ptr.T(proto.FlamegraphOptions_RenderAddressesUnsymbolized)
+			options.RenderAddresses = ptr.T(proto.AddressRenderPolicy_RenderAddressesUnsymbolized)
 			return nil
 		case render.RenderAddressesAlways:
-			options.RenderAddresses = ptr.T(proto.FlamegraphOptions_RenderAddressesAlways)
+			options.RenderAddresses = ptr.T(proto.AddressRenderPolicy_RenderAddressesAlways)
 			return nil
 		default:
 			return fmt.Errorf("unexpected address render policy %s, expected one of %s", val, addressRenderPolicies)

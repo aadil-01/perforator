@@ -423,6 +423,21 @@ message SymbolizeOptions {
     optional bool EmbedDwarfDiscriminators = 4;
 }
 
+// NB: This enum should match the same enumeration in the
+// perforator/pkg/profile/flamegraph/render package.
+enum AddressRenderPolicy {
+    // Do not display raw addreses. Unsymbolized functions will be rendered
+    // as something like <unsymbolized function>.
+    // This mode is recommended by default.
+    RenderAddressesNever = 0;
+    // Display raw addresses for unsymbolized functions only.
+    // This can be useful for debugging missing symbols.
+    RenderAddressesUnsymbolized = 1;
+    // Always display raw addresses, even for properly symbolized code.
+    // This can be useful for debugging symbolization.
+    RenderAddressesAlways = 2;
+};
+
 message FlamegraphOptions {
     reserved "ResultFormat";
     reserved 6;
@@ -444,22 +459,20 @@ message FlamegraphOptions {
     // Enabled by default.
     optional bool ShowFileNames = 5;
 
-    // NB: This enum should match the same enumeration in the
-    // perforator/pkg/profile/flamegraph/render package.
-    enum AddressRenderPolicy {
-        // Do not display raw addreses. Unsymolized functions will be rendered
-        // as something like <unsymbolized function>.
-        // This mode is recommended by default.
-        RenderAddressesNever = 0;
-        // Display raw addresses for unsymbolized functions only.
-        // This can be useful for debugging missing symbols.
-        RenderAddressesUnsymbolized = 1;
-        // Always display raw addresses, even for properly symbolized code.
-        // This can be useful for debugging symbolization.
-        RenderAddressesAlways = 2;
-    };
-
     // How to display raw addresses in the flamegraph.
+    optional AddressRenderPolicy RenderAddresses = 7;
+}
+
+message TextProfileOptions {
+    
+    // Show line numbers, if available
+    optional bool ShowLineNumbers = 4;
+    
+    // Show file names after function names.
+    // Enabled by default.
+    optional bool ShowFileNames = 5;
+    
+    // How to display raw addresses in the output.
     optional AddressRenderPolicy RenderAddresses = 7;
 }
 
@@ -501,6 +514,9 @@ message RenderFormat {
         // Is emitted as html.
         // Uses the same code as ui but can be shown without ui.
         FlamegraphOptions HTMLVisualisation = 8;
+
+        // Render profile as human-readable text.
+        TextProfileOptions TextProfile = 9;
     }
 }
 

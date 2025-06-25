@@ -26,6 +26,8 @@ func RenderProfile(ctx context.Context, profile *profile.Profile, format *perfor
 		return buildProfileFlamegraph(profile, v.JSONFlamegraph, render.JSONFormat)
 	case *perforator.RenderFormat_HTMLVisualisation:
 		return buildProfileFlamegraph(profile, v.HTMLVisualisation, render.HTMLFormatV2)
+	case *perforator.RenderFormat_TextProfile:
+		return buildProfileTextFormat(profile, v.TextProfile)
 	}
 
 	return nil, fmt.Errorf("unsupported render format %s", format.String())
@@ -85,12 +87,57 @@ func fillFlamegraphOptions(fg *render.FlameGraph, options *perforator.Flamegraph
 	}
 
 	switch options.GetRenderAddresses() {
-	case perforator.FlamegraphOptions_RenderAddressesNever:
+	case perforator.AddressRenderPolicy_RenderAddressesNever:
 		fg.SetAddressRenderPolicy(render.RenderAddressesNever)
-	case perforator.FlamegraphOptions_RenderAddressesUnsymbolized:
+	case perforator.AddressRenderPolicy_RenderAddressesUnsymbolized:
 		fg.SetAddressRenderPolicy(render.RenderAddressesUnsymbolized)
-	case perforator.FlamegraphOptions_RenderAddressesAlways:
+	case perforator.AddressRenderPolicy_RenderAddressesAlways:
 		fg.SetAddressRenderPolicy(render.RenderAddressesAlways)
+	default:
+		return fmt.Errorf("unsupported address rendering policy %v", options.GetRenderAddresses())
+	}
+
+	return nil
+}
+
+func buildProfileTextFormat(profile *profile.Profile, options *perforator.TextProfileOptions) ([]byte, error) {
+	buffer := bytes.NewBuffer(make([]byte, 0))
+
+	textFormat := render.NewTextFormatRenderer()
+
+	err := fillTextFormatOptions(textFormat, options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fill text format options: %w", err)
+	}
+
+	err = textFormat.RenderPProf(profile, buffer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to render profile text format: %w", err)
+	}
+
+	return buffer.Bytes(), nil
+}
+
+func fillTextFormatOptions(tf *render.TextFormatRenderer, options *perforator.TextProfileOptions) error {
+	if options == nil {
+		return nil
+	}
+
+	if lineNumbers := options.ShowLineNumbers; lineNumbers != nil {
+		tf.SetLineNumbers(*lineNumbers)
+	}
+
+	if fileNames := options.ShowFileNames; fileNames != nil {
+		tf.SetFileNames(*fileNames)
+	}
+
+	switch options.GetRenderAddresses() {
+	case perforator.AddressRenderPolicy_RenderAddressesNever:
+		tf.SetAddressRenderPolicy(render.RenderAddressesNever)
+	case perforator.AddressRenderPolicy_RenderAddressesUnsymbolized:
+		tf.SetAddressRenderPolicy(render.RenderAddressesUnsymbolized)
+	case perforator.AddressRenderPolicy_RenderAddressesAlways:
+		tf.SetAddressRenderPolicy(render.RenderAddressesAlways)
 	default:
 		return fmt.Errorf("unsupported address rendering policy %v", options.GetRenderAddresses())
 	}

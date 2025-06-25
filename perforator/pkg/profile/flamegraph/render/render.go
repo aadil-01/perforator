@@ -63,6 +63,8 @@ const (
 	HTMLFormatV2     Format = "html-v2"
 	JSONFormat       Format = "json"
 	JSONPrettyFormat Format = "json-pretty"
+
+	PlainTextFormat Format = "text" // Used only in TextFormat struct
 )
 
 const (
@@ -94,14 +96,21 @@ type locationData struct {
 	inlined bool
 }
 
+// LocationFrameOptions contains configuration for rendering location frames
+type LocationFrameOptions struct {
+	AddressPolicy  AddressRenderPolicy
+	LineNumbers    bool
+	FileNames      bool
+	FilePathPrefix string
+}
+
 type FlameGraph struct {
 	diff bool
 
-	format        Format
-	inverted      bool
-	lineNumbers   bool
-	fileNames     bool
-	addressPolicy AddressRenderPolicy
+	format   Format
+	inverted bool
+
+	locationFrameOptions LocationFrameOptions
 
 	title     string
 	maxDepth  int
@@ -126,7 +135,10 @@ type FlameGraph struct {
 
 func NewFlameGraph() *FlameGraph {
 	return &FlameGraph{
-		fileNames:           true,
+		locationFrameOptions: LocationFrameOptions{
+			FileNames:      true,
+			FilePathPrefix: "@",
+		},
 		format:              HTMLFormatV2,
 		title:               "Flame Graph",
 		frameType:           "Function",
@@ -177,11 +189,15 @@ func (f *FlameGraph) SetFontSize(size float64) {
 }
 
 func (f *FlameGraph) SetLineNumbers(value bool) {
-	f.lineNumbers = value
+	f.locationFrameOptions.LineNumbers = value
 }
 
 func (f *FlameGraph) SetFileNames(value bool) {
-	f.fileNames = value
+	f.locationFrameOptions.FileNames = value
+}
+
+func (f *FlameGraph) SetFilePathPrefix(value string) {
+	f.locationFrameOptions.FilePathPrefix = value
 }
 
 func (f *FlameGraph) SetFormat(format Format) {
@@ -189,7 +205,7 @@ func (f *FlameGraph) SetFormat(format Format) {
 }
 
 func (f *FlameGraph) SetAddressRenderPolicy(policy AddressRenderPolicy) {
-	f.addressPolicy = policy
+	f.locationFrameOptions.AddressPolicy = policy
 }
 
 func reverse(s string) string {
@@ -644,7 +660,7 @@ func (f *FlameGraph) addCollapsedProfile(profile *collapsed.Profile, baseline bo
 	}
 }
 
-func (f *FlameGraph) getLocationFrames(loc *pprof.Location) []locationData {
+func getLocationFrames(loc *pprof.Location, options LocationFrameOptions) []locationData {
 	frames := make([]locationData, 0, len(loc.Line))
 	for i, line := range loc.Line {
 		funcname := "??"
@@ -661,14 +677,14 @@ func (f *FlameGraph) getLocationFrames(loc *pprof.Location) []locationData {
 		}
 
 		switch {
-		case f.addressPolicy == RenderAddressesUnsymbolized && funcname == unsymbolizedFunction:
+		case options.AddressPolicy == RenderAddressesUnsymbolized && funcname == unsymbolizedFunction:
 			fallthrough
-		case f.addressPolicy == RenderAddressesAlways:
+		case options.AddressPolicy == RenderAddressesAlways:
 			funcname = fmt.Sprintf("{%x} %s", loc.Address, funcname)
 		}
 
 		lineNumber := ""
-		if f.lineNumbers {
+		if options.LineNumbers {
 			lineNumber = fmt.Sprintf(":%d", line.Line)
 		}
 
@@ -686,8 +702,8 @@ func (f *FlameGraph) getLocationFrames(loc *pprof.Location) []locationData {
 		inlined := i > 0
 
 		filepos := ""
-		if f.fileNames {
-			filepos = "@" + filename + lineNumber
+		if options.FileNames {
+			filepos = options.FilePathPrefix + filename + lineNumber
 		}
 
 		frames = append(frames, locationData{name: or(funcname), file: filepos, inlined: inlined})
@@ -698,7 +714,7 @@ func (f *FlameGraph) getLocationFrames(loc *pprof.Location) []locationData {
 
 func (f *FlameGraph) getLocationFramesCached(loc *pprof.Location) []locationData {
 	if loc.Mapping == nil {
-		return f.getLocationFrames(loc)
+		return getLocationFrames(loc, f.locationFrameOptions)
 	}
 
 	meta := locationMeta{
@@ -707,7 +723,7 @@ func (f *FlameGraph) getLocationFramesCached(loc *pprof.Location) []locationData
 	}
 	frames, found := f.locationsCache[meta]
 	if !found {
-		frames = f.getLocationFrames(loc)
+		frames = getLocationFrames(loc, f.locationFrameOptions)
 		f.locationsCache[meta] = frames
 	}
 
@@ -777,7 +793,7 @@ func (f *FlameGraph) addProfile(p *pprof.Profile, baseline bool) {
 				} else {
 					name := "??"
 					path := ""
-					if f.fileNames {
+					if f.locationFrameOptions.FileNames {
 						path = loc.Mapping.File
 					}
 					iter.Advance(name, path).SetFrameOrigin(origin)

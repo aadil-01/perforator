@@ -411,7 +411,7 @@ export interface FlamegraphOptions {
  */
 export enum FlamegraphOptions_AddressRenderPolicy {
   /**
-   * RenderAddressesNever - Do not display raw addreses. Unsymolized functions will be rendered
+   * RenderAddressesNever - Do not display raw addreses. Unsymbolized functions will be rendered
    * as something like <unsymbolized function>.
    * This mode is recommended by default.
    */
