@@ -1584,6 +1584,8 @@ func (s *PerforatorServer) makeProfileKey(format *perforator.RenderFormat) (stri
 		suffix = ".json"
 	case *perforator.RenderFormat_Flamegraph, *perforator.RenderFormat_HTMLVisualisation:
 		suffix = ".html"
+	case *perforator.RenderFormat_TextProfile:
+		suffix = ".txt"
 	default:
 		return "", fmt.Errorf("unsupported render format: %T", v)
 	}
