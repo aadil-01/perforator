@@ -144,12 +144,12 @@ func (b *blocksBuilder) pushDownOffsets(block *block, total, offset float64) {
 ////////////////////////////////////////////////////////////////////////////////
 
 type blocksIterator struct {
-	inverted bool
 	sum      float64
 	block    *block
 	builder  *blocksBuilder
 	depth    int
 	minus    bool
+	inverted bool
 }
 
 func (b *blocksBuilder) MakeIterator(sum float64, minus bool) *blocksIterator {

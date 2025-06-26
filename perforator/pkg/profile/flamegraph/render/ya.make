@@ -4,6 +4,8 @@ TAG(ya:run_go_benchmark)
 IF (NOT OPENSOURCE)
     DATA(
         sbr://3766900569=stacks
+        sbr://9066593741=pprof-a
+        sbr://9066590432=pprof-b
     )
 ENDIF()
 

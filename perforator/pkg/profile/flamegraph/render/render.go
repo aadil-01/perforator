@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	pprof "github.com/google/pprof/profile"
+	"golang.org/x/exp/maps"
 
 	"github.com/yandex/perforator/library/go/core/resource"
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/profile"
@@ -105,10 +106,9 @@ type LocationFrameOptions struct {
 }
 
 type FlameGraph struct {
-	diff bool
-
 	format   Format
 	inverted bool
+	diff     bool
 
 	locationFrameOptions LocationFrameOptions
 
@@ -417,6 +417,37 @@ func (f *FlameGraph) renderBlocksToJSON(blocks []*block, w io.Writer) error {
 	enc := json.NewEncoder(w)
 	return f.encodeBlocksToJSON(blocks, enc)
 }
+
+func populateWithIndexes(root *block, depth, queueSize int) [][]*block {
+	// every block will be in the queue once;
+	// the queue becomes smaller by cutting off its first element
+	// the underlying array elements will stay in place and we will move over that section of memory
+	// so we cannot allocate less than the amount of blocks
+	q := make([]*block, 0, queueSize)
+	q = append(q, root)
+	blocksByLevels := make([][]*block, depth)
+	lastLevel := 0
+	lastIndex := 0
+	for len(q) != 0 {
+		currentBlock := q[0]
+		q = q[1:]
+		if currentBlock.level > lastLevel {
+			lastLevel = currentBlock.level
+			lastIndex = 0
+		}
+		currentBlock.setLevelPos(lastIndex)
+		lastIndex += 1
+		blocksByLevels[lastLevel] = append(blocksByLevels[lastLevel], currentBlock)
+		children := currentBlock.children
+		keys := maps.Keys(children)
+		slices.Sort(keys)
+		for _, key := range keys {
+			q = append(q, children[key])
+		}
+	}
+	return blocksByLevels
+}
+
 func (f *FlameGraph) encodeBlocksToJSON(blocks []*block, enc *json.Encoder) error {
 	strtab := NewStringTable()
 
@@ -427,41 +458,13 @@ func (f *FlameGraph) encodeBlocksToJSON(blocks []*block, enc *json.Encoder) erro
 		}
 	}
 
-	blocksByLevels := make([][]*block, maxLevel+1)
 	nodeLevels := make([][]format.RenderingNode, maxLevel+1)
 
-	for _, block := range blocks {
-
-		blocksByLevels[block.level] = append(blocksByLevels[block.level], block)
-	}
-
-	compare := func(diff float64) int {
-		if diff > 0 {
-			return 1
-		}
-		if diff < 0 {
-			return -1
-		}
-		return 0
-	}
-
-	compareOffsets := func(a *block, b *block) int {
-		diff := a.offset - b.offset
-		compareResult := compare(diff)
-		if compareResult != 0 {
-			return compareResult
-		}
-		return strings.Compare(a.name, b.name)
-	}
+	blocksByLevels := populateWithIndexes(blocks[0], maxLevel+1, len(blocks))
 
 	for _, blocksOnLevel := range blocksByLevels {
-		slices.SortFunc(blocksOnLevel, compareOffsets)
-	}
-
-	for _, blocksOnLevel := range blocksByLevels {
-		for i, currentBlock := range blocksOnLevel {
+		for _, currentBlock := range blocksOnLevel {
 			parentIndex := -1
-			currentBlock.setLevelPos(i)
 			if currentBlock.parent != nil {
 				parentIndex = currentBlock.parent.levelPos
 			}
