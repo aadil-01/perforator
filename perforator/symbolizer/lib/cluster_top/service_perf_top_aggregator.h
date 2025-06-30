@@ -54,8 +54,8 @@ public:
 private:
     absl::flat_hash_map<TString, TCachingGSYMSymbolizer> Symbolizers_;
 
-    absl::flat_hash_map<TString, ui128> CumulativeCycles_;
-    absl::flat_hash_map<TString, ui128> SelfCycles_;
+    absl::flat_hash_map<TString, ui128, THash<TString>, TEqualTo<TString>> CumulativeCycles_;
+    absl::flat_hash_map<TString, ui128, THash<TString>, TEqualTo<TString>> SelfCycles_;
     ui128 TotalCycles_{0};
 };
 

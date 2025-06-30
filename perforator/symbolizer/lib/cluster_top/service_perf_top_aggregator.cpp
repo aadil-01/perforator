@@ -20,8 +20,9 @@ constexpr std::size_t kMaxEntriesToPrint = 10'000;
 constexpr std::string_view kCPUCyclesType = "cpu";
 constexpr std::string_view kCPUCyclesUnit = "cycles";
 
-const TString kUnknownLocation = "<UNKNOWN>";
-const TString kNoGSYMLocation = "<UNKNOWN (No GSYM)>";
+// TODO : PERFORATOR-886
+constexpr std::string_view kUnknownLocation = "<UNKNOWN>";
+constexpr std::string_view kNoGSYMLocation = "<UNKNOWN (No GSYM)>";
 
 ui64 GetCpuCyclesValue(
     const NPerforator::NProto::NPProf::Profile& profile,
@@ -36,6 +37,35 @@ ui64 GetCpuCyclesValue(
 
     return 0;
 }
+
+struct TLifetimeSoundnessReason final {
+    explicit constexpr TLifetimeSoundnessReason(std::string_view) {}
+};
+
+// A string_view-like class, *implicitly* convertible to TString.
+// Used for try_emplace-ing a string_view into a HashMap<TString, ...>
+class TStringViewConvertibleToString final {
+public:
+    TStringViewConvertibleToString(const TString&) = delete;
+    TStringViewConvertibleToString(const std::string&) = delete;
+
+    explicit constexpr TStringViewConvertibleToString(TStringBuf data) : Data_{data} {}
+    explicit constexpr TStringViewConvertibleToString(std::string_view data) : Data_{data} {}
+
+    TStringViewConvertibleToString(const TString& data, TLifetimeSoundnessReason) : Data_{data} {}
+    TStringViewConvertibleToString(const std::string& data, TLifetimeSoundnessReason) : Data_{data} {}
+    TStringViewConvertibleToString(std::string_view data, TLifetimeSoundnessReason) : Data_{data} {}
+
+    constexpr operator TStringBuf() const {
+        return Data_;
+    }
+
+    operator TString() const {
+        return TString{Data_};
+    }
+private:
+    TStringBuf Data_;
+};
 
 }
 
@@ -93,7 +123,11 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const 
         locationByIdMap[location.id()] = &location;
     }
 
-    absl::flat_hash_map<ui64, TSmallVector<TString>> symbolizedLocationsById;
+    // Every string, for which the views in this map are stored, outlives the map:
+    // * some strings are static/constexpr
+    // * some strings belong to the profile
+    // * some strings belong to the TServicePerfTopAggregator (i.e. symbolization cache)
+    absl::flat_hash_map<ui64, TSmallVector<TStringViewConvertibleToString>> symbolizedLocationsById;
     symbolizedLocationsById.reserve(profile.locationSize());
 
     for (const auto& location : profile.Getlocation()) {
@@ -109,30 +143,33 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const 
             for (const auto& line : location.Getline()) {
                 const auto functionId = line.function_id();
                 if (functionId == 0) {
-                    symbolized.push_back(kUnknownLocation);
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
                     continue;
                 }
                 const auto& function = *functionByIdMap.at(functionId);
-                symbolized.push_back(profile.string_table(function.name()));
+                symbolized.emplace_back(
+                    profile.string_table(function.name()),
+                    TLifetimeSoundnessReason{"profile outlives everything in this function"}
+                );
             }
         } else {
             [&symbolized, &location, &mappingByIdMap, &profile, this]() {
                 const auto mappingId = location.mapping_id();
                 if (mappingId == 0) {
-                    symbolized.push_back(kUnknownLocation);
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
                     return;
                 }
                 const auto& mapping = *mappingByIdMap.at(mappingId);
 
                 if (mapping.build_id() == 0) {
-                    symbolized.push_back(kUnknownLocation);
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
                     return;
                 }
                 const auto& buildId = profile.string_table(mapping.build_id());
 
                 auto symbolizerIt = Symbolizers_.find(buildId);
                 if (symbolizerIt == Symbolizers_.end()) {
-                    symbolized.push_back(kNoGSYMLocation);
+                    symbolized.emplace_back(kNoGSYMLocation, TLifetimeSoundnessReason{"kNoGSYMLocation is static"});
                     return;
                 }
                 auto& symbolizer = symbolizerIt->second;
@@ -141,12 +178,15 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const 
                 const auto& symbolizationResult = symbolizer.Symbolize(address);
 
                 if (symbolizationResult.empty()) {
-                    symbolized.push_back(kUnknownLocation);
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
                     return;
                 }
 
                 for (const auto& frame : symbolizationResult) {
-                    symbolized.push_back(TString{frame.FunctionName});
+                    symbolized.emplace_back(
+                        frame.FunctionName,
+                        TLifetimeSoundnessReason{"symbolizationResult is cached in symbolizer, thus its lifetime is tied to the aggregator"}
+                    );
                 }
             }();
         }
@@ -179,14 +219,14 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const 
         if (frame.empty()) {
             continue;
         }
-        SelfCycles_[frame.back()] += value;
+        SelfCycles_.try_emplace<TStringViewConvertibleToString>(frame.back(), 0).first->second += value;
     }
 
     for (const auto& [id, frames] : symbolizedLocationsById) {
         const auto value = cumulativeCyclesCountByLocationId[id];
 
         for (const auto& frame : frames) {
-            CumulativeCycles_[frame] += value;
+            CumulativeCycles_.try_emplace<TStringViewConvertibleToString>(frame, 0).first->second += value;
         }
     }
 }
