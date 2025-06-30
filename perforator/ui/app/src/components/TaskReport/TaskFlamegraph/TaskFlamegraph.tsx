@@ -16,9 +16,6 @@ import { useTypedQuery } from '../Flamegraph/query-utils';
 import { Visualisation } from '../Visualisation/Visualisation';
 
 
-const prerenderColors = withMeasureTime(prerenderColorsOriginal, 'prerenderColors', (ms) => uiFactory().rum()?.sendDelta?.('prerenderColors', ms));
-
-
 export type SupportedRenderFormats = 'Flamegraph' | 'JSONFlamegraph'
 
 export interface TaskFlamegraphProps {
@@ -71,6 +68,10 @@ export const TaskFlamegraph: React.FC<TaskFlamegraphProps> = (props) => {
     const prerenderedNewData = React.useMemo(() => {
         if (profileData) {
             uiFactory().rum()?.startDataRendering?.(pageName, '', false);
+            const framesCount = profileData?.rows?.reduce((acc, row) => acc + row.length, 0);
+
+            const prerenderColors = withMeasureTime(prerenderColorsOriginal, 'prerenderColors', (ms) => uiFactory().rum()?.sendDelta?.('prerenderColors', ms, { framesCount }));
+
             return prerenderColors(profileData, { theme });
         }
         return null;
