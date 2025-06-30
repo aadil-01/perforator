@@ -2,7 +2,7 @@ GO_LIBRARY()
 
 LICENSE(Apache-2.0)
 
-VERSION(v0.19.1)
+VERSION(v0.23.1)
 
 SRCS(
     checked.pb.go
