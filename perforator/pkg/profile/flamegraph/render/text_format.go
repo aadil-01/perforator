@@ -9,7 +9,9 @@ import (
 
 	pprof "github.com/google/pprof/profile"
 
+	"github.com/yandex/perforator/perforator/pkg/env"
 	"github.com/yandex/perforator/perforator/pkg/profile/labels"
+	"github.com/yandex/perforator/perforator/pkg/tls"
 )
 
 const (
@@ -137,18 +139,98 @@ func (t *TextFormatRenderer) writeProcessInfo(indent string, sample *pprof.Sampl
 }
 
 func (t *TextFormatRenderer) writeLabels(indent string, sample *pprof.Sample, w io.Writer) error {
+	_, err := fmt.Fprintf(w, "%sLabels:\n", indent)
+	if err != nil {
+		return err
+	}
 	for k, values := range sample.Label {
+		// Skip environment variables and thread local variables
+		if _, ok := env.BuildEnvKeyFromLabelKey(k); ok {
+			continue
+		}
+		if _, ok := tls.BuildTLSKeyFromLabelKey(k); ok {
+			continue
+		}
+
 		for _, v := range values {
-			_, err := fmt.Fprintf(w, "%s%s: %s\n", indent, k, v)
+			_, err := fmt.Fprintf(w, "%s%s: %s\n", indent+singleIndent, k, v)
 			if err != nil {
 				return err
 			}
 		}
 	}
+
+	for k, values := range sample.NumLabel {
+		for _, v := range values {
+			_, err := fmt.Fprintf(w, "%s%s: %v\n", indent+singleIndent, k, v)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	_, err = fmt.Fprintf(w, "\n")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *TextFormatRenderer) writeEnvironmentVariables(indent string, sample *pprof.Sample, w io.Writer) error {
+	_, err := fmt.Fprintf(w, "%sEnvironment variables:\n", indent)
+	if err != nil {
+		return err
+	}
+	for k, values := range sample.Label {
+		if name, ok := env.BuildEnvKeyFromLabelKey(k); ok {
+			for _, v := range values {
+				_, err := fmt.Fprintf(w, "%s%s: %s\n", indent+singleIndent, name, v)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	_, err = fmt.Fprintf(w, "\n")
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *TextFormatRenderer) writeThreadLocalVariables(indent string, sample *pprof.Sample, w io.Writer) error {
+	_, err := fmt.Fprintf(w, "%sThread local variables:\n", indent)
+	if err != nil {
+		return err
+	}
+
+	for k, values := range sample.Label {
+		if name, ok := tls.BuildTLSKeyFromLabelKey(k); ok {
+			for _, v := range values {
+				_, err := fmt.Fprintf(w, "%s%s: %s\n", indent+singleIndent, name, v)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	_, err = fmt.Fprintf(w, "\n")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (t *TextFormatRenderer) writeStackTrace(indent string, sample *pprof.Sample, w io.Writer) error {
+	_, err := fmt.Fprintf(w, "%sStack Trace (most recent call first):\n", indent)
+	if err != nil {
+		return err
+	}
+
 	index := 1
 	for _, loc := range sample.Location {
 		frames := t.getLocationFramesCached(loc)
@@ -158,7 +240,7 @@ func (t *TextFormatRenderer) writeStackTrace(indent string, sample *pprof.Sample
 			if loc.Mapping != nil && loc.Mapping.File != "" {
 				mapping = loc.Mapping.File
 			}
-			_, err := fmt.Fprintf(w, "%s%d: ?? [%s] {%#x}\n", indent, index, mapping, loc.Address)
+			_, err := fmt.Fprintf(w, "%s%d: ?? [%s] {%#x}\n", indent+singleIndent, index, mapping, loc.Address)
 			if err != nil {
 				return err
 			}
@@ -167,7 +249,7 @@ func (t *TextFormatRenderer) writeStackTrace(indent string, sample *pprof.Sample
 		}
 
 		for _, frame := range frames {
-			_, err := fmt.Fprintf(w, "%s%d: %s", indent, index, frame.name)
+			_, err := fmt.Fprintf(w, "%s%d: %s", indent+singleIndent, index, frame.name)
 			if err != nil {
 				return err
 			}
@@ -189,6 +271,11 @@ func (t *TextFormatRenderer) writeStackTrace(indent string, sample *pprof.Sample
 			}
 			index++
 		}
+	}
+
+	_, err = fmt.Fprintf(w, "\n")
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -220,32 +307,22 @@ func (t *TextFormatRenderer) renderToPlainText(p *pprof.Profile, w io.Writer) er
 			return err
 		}
 
-		_, err = fmt.Fprintf(w, "%sLabels:\n", singleIndent)
+		err = t.writeLabels(singleIndent, sample, w)
 		if err != nil {
 			return err
 		}
 
-		err = t.writeLabels(doubleIndent, sample, w)
+		err = t.writeEnvironmentVariables(singleIndent, sample, w)
 		if err != nil {
 			return err
 		}
 
-		_, err = fmt.Fprintf(w, "\n")
+		err = t.writeThreadLocalVariables(singleIndent, sample, w)
 		if err != nil {
 			return err
 		}
 
-		_, err = fmt.Fprintf(w, "%sStack Trace (most recent call first):\n", singleIndent)
-		if err != nil {
-			return err
-		}
-
-		err = t.writeStackTrace(doubleIndent, sample, w)
-		if err != nil {
-			return err
-		}
-
-		_, err = fmt.Fprintf(w, "\n")
+		err = t.writeStackTrace(singleIndent, sample, w)
 		if err != nil {
 			return err
 		}
