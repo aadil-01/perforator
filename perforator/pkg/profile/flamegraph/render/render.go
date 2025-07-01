@@ -687,7 +687,7 @@ func getLocationFrames(loc *pprof.Location, options LocationFrameOptions) []loca
 		}
 
 		lineNumber := ""
-		if options.LineNumbers {
+		if options.LineNumbers && line.Line > 0 {
 			lineNumber = fmt.Sprintf(":%d", line.Line)
 		}
 
