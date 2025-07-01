@@ -158,7 +158,7 @@ func (t *TextFormatRenderer) writeStackTrace(indent string, sample *pprof.Sample
 			if loc.Mapping != nil && loc.Mapping.File != "" {
 				mapping = loc.Mapping.File
 			}
-			_, err := fmt.Fprintf(w, "%s%d: ?? [%s] addr:%x\n", indent, index, mapping, loc.Address)
+			_, err := fmt.Fprintf(w, "%s%d: ?? [%s] {%#x}\n", indent, index, mapping, loc.Address)
 			if err != nil {
 				return err
 			}

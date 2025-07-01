@@ -159,6 +159,90 @@ func TestLocationFrameHandling(t *testing.T) {
 	})
 }
 
+func TestHexAddressFormatting(t *testing.T) {
+	t.Run("LocationWithoutFunctionInfo", func(t *testing.T) {
+		tf := NewTextFormatRenderer()
+
+		// Create a location without any functions
+		loc := &profile.Location{
+			ID:      1,
+			Address: 0xABCDEF,
+			Mapping: &profile.Mapping{
+				ID:   1,
+				File: "test-binary",
+			},
+			// Empty Line[]
+		}
+
+		sample := &profile.Sample{
+			Location: []*profile.Location{loc},
+		}
+
+		var buf bytes.Buffer
+		err := tf.writeStackTrace("  ", sample, &buf)
+		require.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "{0xabcdef}")
+		assert.NotContains(t, output, "{abcdef}")
+	})
+
+	t.Run("AddressInFunctionName_Always", func(t *testing.T) {
+		tf := NewTextFormatRenderer()
+		tf.SetAddressRenderPolicy(RenderAddressesAlways)
+
+		loc := createTestLocation(1, "function1", "test.go", 10)
+		loc.Address = 0x1A2B3C
+
+		sample := &profile.Sample{
+			Location: []*profile.Location{loc},
+		}
+
+		var buf bytes.Buffer
+		err := tf.writeStackTrace("  ", sample, &buf)
+		require.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "{0x1a2b3c}")
+		assert.NotContains(t, output, "{1a2b3c}")
+	})
+
+	t.Run("AddressInFunctionName_Unsymbolized", func(t *testing.T) {
+		tf := NewTextFormatRenderer()
+		tf.SetAddressRenderPolicy(RenderAddressesUnsymbolized)
+
+		// Create a location with unsymbolized functions
+		loc := &profile.Location{
+			ID:      1,
+			Address: 0xDEADBEEF,
+			Mapping: &profile.Mapping{
+				ID:   1,
+				File: "binary",
+			},
+			Line: []profile.Line{
+				{
+					Function: &profile.Function{
+						ID:   1,
+						Name: "??",
+					},
+				},
+			},
+		}
+
+		sample := &profile.Sample{
+			Location: []*profile.Location{loc},
+		}
+
+		var buf bytes.Buffer
+		err := tf.writeStackTrace("  ", sample, &buf)
+		require.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "{0xdeadbeef}")
+		assert.NotContains(t, output, "{deadbeef}")
+	})
+}
+
 func TestFullProfileRendering(t *testing.T) {
 	t.Run("BasicProfile", func(t *testing.T) {
 		tf := NewTextFormatRenderer()
@@ -224,7 +308,7 @@ func TestFullProfileRendering(t *testing.T) {
 		require.NoError(t, err)
 
 		outputStr := string(output)
-		assert.Contains(t, outputStr, "{2000} function1")
+		assert.Contains(t, outputStr, "{0x2000} function1")
 	})
 }
 

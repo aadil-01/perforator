@@ -683,7 +683,7 @@ func getLocationFrames(loc *pprof.Location, options LocationFrameOptions) []loca
 		case options.AddressPolicy == RenderAddressesUnsymbolized && funcname == unsymbolizedFunction:
 			fallthrough
 		case options.AddressPolicy == RenderAddressesAlways:
-			funcname = fmt.Sprintf("{%x} %s", loc.Address, funcname)
+			funcname = fmt.Sprintf("{%#x} %s", loc.Address, funcname)
 		}
 
 		lineNumber := ""
