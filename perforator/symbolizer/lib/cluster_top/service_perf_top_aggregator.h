@@ -8,7 +8,7 @@
 #include <util/generic/array_ref.h>
 
 namespace NPerforator::NProto::NPProf {
-class Profile;
+class ProfileLight;
 }
 
 namespace NPerforator::NClusterTop {
@@ -34,7 +34,7 @@ public:
 
     void AddProfile(TArrayRef<const char> service, TArrayRef<const char> profileBytes);
 
-    void AddProfile(TArrayRef<const char> service, const NPerforator::NProto::NPProf::Profile& profile);
+    void AddProfile(TArrayRef<const char> service, const NPerforator::NProto::NPProf::ProfileLight& profile);
 
     void MergeAggregator(const TServicePerfTopAggregator& other);
 

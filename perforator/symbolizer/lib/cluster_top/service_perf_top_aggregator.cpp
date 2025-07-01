@@ -1,6 +1,6 @@
 #include "service_perf_top_aggregator.h"
 
-#include <perforator/proto/pprofprofile/profile.pb.h>
+#include <perforator/proto/pprofprofile/lightweightprofile.pb.h>
 #include <perforator/symbolizer/lib/symbolize/symbolizer.h>
 
 #include <library/cpp/yt/compact_containers/compact_vector.h>
@@ -25,8 +25,8 @@ constexpr std::string_view kUnknownLocation = "<UNKNOWN>";
 constexpr std::string_view kNoGSYMLocation = "<UNKNOWN (No GSYM)>";
 
 ui64 GetCpuCyclesValue(
-    const NPerforator::NProto::NPProf::Profile& profile,
-    const NPerforator::NProto::NPProf::Sample& sample) {
+    const NPerforator::NProto::NPProf::ProfileLight& profile,
+    const NPerforator::NProto::NPProf::SampleLight& sample) {
     for (std::size_t i = 0; i < profile.sample_typeSize(); ++i) {
         const auto& sampleType = profile.sample_type(i);
         if (profile.string_table(sampleType.type()) == kCPUCyclesType &&
@@ -99,7 +99,7 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, TArray
         return;
     }
 
-    NPerforator::NProto::NPProf::Profile profile{};
+    NPerforator::NProto::NPProf::ProfileLight profile{};
     if (!profile.ParseFromString(std::string_view{profileBytes.data(), profileBytes.size()})) {
         return;
     }
@@ -107,7 +107,7 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, TArray
     AddProfile(service, profile);
 }
 
-void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const NPerforator::NProto::NPProf::Profile& profile) {
+void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const NPerforator::NProto::NPProf::ProfileLight& profile) {
     absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Function*> functionByIdMap;
     for (const auto& function : profile.Getfunction()) {
         functionByIdMap[function.id()] = &function;
