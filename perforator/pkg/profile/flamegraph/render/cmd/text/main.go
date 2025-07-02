@@ -17,6 +17,7 @@ func main() {
 		fileNames   = flag.Bool("file-names", true, "Show file names")
 		addrPolicy  = flag.String("addr-policy", "never", "Address render policy: never, unsymbolized, always")
 		profilePath = flag.String("file", "", "Profile file path")
+		maxSamples  = flag.Int("max-samples", 0, "Maximum number of samples to render (0 and less means no limit)")
 	)
 	flag.Parse()
 
@@ -48,6 +49,7 @@ func main() {
 	text := render.NewTextFormatRenderer()
 	text.SetLineNumbers(*lineNumbers)
 	text.SetFileNames(*fileNames)
+	text.SetMaxSamples(*maxSamples)
 
 	switch *addrPolicy {
 	case "unsymbolized":

@@ -2,6 +2,7 @@ package render
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/google/pprof/profile"
@@ -15,6 +16,7 @@ func TestTextFormatConfiguration(t *testing.T) {
 		assert.Equal(t, true, tf.locationFrameOptions.FileNames)
 		assert.Equal(t, "", tf.locationFrameOptions.FilePathPrefix)
 		assert.Equal(t, false, tf.locationFrameOptions.LineNumbers)
+		assert.Equal(t, 0, tf.maxSamples)
 	})
 
 	t.Run("CustomConfiguration", func(t *testing.T) {
@@ -22,10 +24,12 @@ func TestTextFormatConfiguration(t *testing.T) {
 		tf.SetLineNumbers(true)
 		tf.SetFileNames(false)
 		tf.SetAddressRenderPolicy(RenderAddressesAlways)
+		tf.SetMaxSamples(100)
 
 		assert.Equal(t, true, tf.locationFrameOptions.LineNumbers)
 		assert.Equal(t, false, tf.locationFrameOptions.FileNames)
 		assert.Equal(t, RenderAddressesAlways, tf.locationFrameOptions.AddressPolicy)
+		assert.Equal(t, 100, tf.maxSamples)
 	})
 }
 
@@ -243,6 +247,78 @@ func TestHexAddressFormatting(t *testing.T) {
 	})
 }
 
+func TestMaxSamples(t *testing.T) {
+	t.Run("RenderWithMaxSamplesLimited", func(t *testing.T) {
+		tf := NewTextFormatRenderer()
+		tf.SetMaxSamples(1)
+
+		profile := createTestProfileWithMultipleSamples(2)
+
+		err := tf.AddProfile(profile)
+		require.NoError(t, err)
+
+		output, err := tf.RenderBytes()
+		require.NoError(t, err)
+
+		outputStr := string(output)
+		assert.Contains(t, outputStr, "Sample #1:")
+		assert.NotContains(t, outputStr, "Sample #2:")
+		assert.Contains(t, outputStr, "Profile was truncated: showing 1 out of 2 samples")
+	})
+
+	t.Run("RenderWithMaxSamplesUnlimited", func(t *testing.T) {
+		tf := NewTextFormatRenderer()
+		profile := createTestProfileWithMultipleSamples(2)
+
+		err := tf.AddProfile(profile)
+		require.NoError(t, err)
+
+		output, err := tf.RenderBytes()
+		require.NoError(t, err)
+
+		outputStr := string(output)
+		assert.Contains(t, outputStr, "Sample #1:")
+		assert.Contains(t, outputStr, "Sample #2:")
+		assert.NotContains(t, outputStr, "Profile was truncated")
+	})
+
+	t.Run("RenderWithMaxSamplesEqualsTotal", func(t *testing.T) {
+		tf := NewTextFormatRenderer()
+		tf.SetMaxSamples(2)
+
+		profile := createTestProfileWithMultipleSamples(2)
+
+		err := tf.AddProfile(profile)
+		require.NoError(t, err)
+
+		output, err := tf.RenderBytes()
+		require.NoError(t, err)
+
+		outputStr := string(output)
+		assert.Contains(t, outputStr, "Sample #1:")
+		assert.Contains(t, outputStr, "Sample #2:")
+		assert.NotContains(t, outputStr, "Profile was truncated")
+	})
+
+	t.Run("RenderWithMaxSamplesGreaterThanTotal", func(t *testing.T) {
+		tf := NewTextFormatRenderer()
+		tf.SetMaxSamples(10)
+
+		profile := createTestProfileWithMultipleSamples(2)
+
+		err := tf.AddProfile(profile)
+		require.NoError(t, err)
+
+		output, err := tf.RenderBytes()
+		require.NoError(t, err)
+
+		outputStr := string(output)
+		assert.Contains(t, outputStr, "Sample #1:")
+		assert.Contains(t, outputStr, "Sample #2:")
+		assert.NotContains(t, outputStr, "Profile was truncated")
+	})
+}
+
 func TestFullProfileRendering(t *testing.T) {
 	t.Run("BasicProfile", func(t *testing.T) {
 		tf := NewTextFormatRenderer()
@@ -382,6 +458,53 @@ func createTestLocation(id uint64, funcName, filename string, line int64) *profi
 					StartLine: line,
 				},
 				Line: line,
+			},
+		},
+	}
+}
+
+func createTestProfileWithMultipleSamples(numSamples int) *profile.Profile {
+	sampleType := []*profile.ValueType{
+		{Type: "cpu", Unit: "nanoseconds"},
+	}
+
+	samples := make([]*profile.Sample, 0, numSamples)
+	locations := make([]*profile.Location, 0, numSamples)
+	functions := make([]*profile.Function, 0, numSamples)
+
+	for i := 1; i <= numSamples; i++ {
+		loc := createTestLocation(uint64(i), fmt.Sprintf("function%d", i), fmt.Sprintf("test%d.go", i), int64(i*10))
+
+		samples = append(samples, &profile.Sample{
+			Location: []*profile.Location{loc},
+			Value:    []int64{int64(i * 1000)},
+			Label: map[string][]string{
+				fmt.Sprintf("key%d", i): {fmt.Sprintf("value%d", i)},
+			},
+			NumLabel: map[string][]int64{
+				"pid": {int64(1000 + i)},
+			},
+		})
+
+		locations = append(locations, loc)
+		functions = append(functions, &profile.Function{
+			ID:        uint64(i),
+			Name:      fmt.Sprintf("function%d", i),
+			Filename:  fmt.Sprintf("test%d.go", i),
+			StartLine: int64(i * 10),
+		})
+	}
+
+	return &profile.Profile{
+		SampleType:        sampleType,
+		DefaultSampleType: "cpu",
+		Sample:            samples,
+		Location:          locations,
+		Function:          functions,
+		Mapping: []*profile.Mapping{
+			{
+				ID:   1,
+				File: "binary",
 			},
 		},
 	}

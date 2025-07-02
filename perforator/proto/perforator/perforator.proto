@@ -464,6 +464,9 @@ message FlamegraphOptions {
 }
 
 message TextProfileOptions {
+
+    // Maximum number of samples to render. 0 means no limit.
+    optional uint32 MaxSamples = 1;
     
     // Show line numbers, if available
     optional bool ShowLineNumbers = 4;

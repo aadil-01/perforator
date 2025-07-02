@@ -53,8 +53,9 @@ func buildProfileFlamegraph(profile *profile.Profile, options *perforator.Flameg
 }
 
 const (
-	flamegraphDefaultMinWeight = 0.00005
-	flamegraphDefaultMaxDepth  = 255
+	flamegraphDefaultMinWeight  = 0.00005
+	flamegraphDefaultMaxDepth   = 255
+	textFormatDefaultMaxSamples = 100
 )
 
 func fillFlamegraphOptions(fg *render.FlameGraph, options *perforator.FlamegraphOptions) error {
@@ -121,6 +122,12 @@ func buildProfileTextFormat(profile *profile.Profile, options *perforator.TextPr
 func fillTextFormatOptions(tf *render.TextFormatRenderer, options *perforator.TextProfileOptions) error {
 	if options == nil {
 		return nil
+	}
+
+	if maxSamples := options.MaxSamples; maxSamples != nil {
+		tf.SetMaxSamples(int(*maxSamples))
+	} else {
+		tf.SetMaxSamples(textFormatDefaultMaxSamples)
 	}
 
 	if lineNumbers := options.ShowLineNumbers; lineNumbers != nil {

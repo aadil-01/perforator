@@ -25,6 +25,7 @@ type TextFormatRenderer struct {
 	format Format
 
 	locationFrameOptions LocationFrameOptions
+	maxSamples           int // Maximum number of samples to render, 0 and less means no limit
 
 	locationsCache map[locationMeta][]locationData
 	profile        *pprof.Profile
@@ -38,7 +39,12 @@ func NewTextFormatRenderer() *TextFormatRenderer {
 		},
 		locationsCache: make(map[locationMeta][]locationData),
 		format:         PlainTextFormat,
+		maxSamples:     0,
 	}
+}
+
+func (t *TextFormatRenderer) SetMaxSamples(maxSamples int) {
+	t.maxSamples = maxSamples
 }
 
 func (t *TextFormatRenderer) SetLineNumbers(value bool) {
@@ -296,7 +302,13 @@ func (t *TextFormatRenderer) renderToPlainText(p *pprof.Profile, w io.Writer) er
 		return err
 	}
 
-	for i, sample := range p.Sample {
+	samplesToRender := len(p.Sample)
+	if t.maxSamples > 0 && t.maxSamples < len(p.Sample) {
+		samplesToRender = t.maxSamples
+	}
+
+	for i := 0; i < samplesToRender; i++ {
+		sample := p.Sample[i]
 		_, err := fmt.Fprintf(w, "Sample #%d:\n", i+1)
 		if err != nil {
 			return err
@@ -323,6 +335,13 @@ func (t *TextFormatRenderer) renderToPlainText(p *pprof.Profile, w io.Writer) er
 		}
 
 		err = t.writeStackTrace(singleIndent, sample, w)
+		if err != nil {
+			return err
+		}
+	}
+
+	if samplesToRender < len(p.Sample) {
+		_, err := fmt.Fprintf(w, "\nProfile was truncated: showing %d out of %d samples\n", samplesToRender, len(p.Sample))
 		if err != nil {
 			return err
 		}
