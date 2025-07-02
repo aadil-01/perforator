@@ -7,6 +7,9 @@
 
 #include <util/generic/array_ref.h>
 
+#include <vector>
+#include <string>
+
 namespace NPerforator::NProto::NPProf {
 class ProfileLight;
 }
@@ -17,13 +20,12 @@ class TCachingGSYMSymbolizer final {
 public:
     TCachingGSYMSymbolizer(std::string_view gsymPath);
 
-    const NPerforator::NGsym::TSmallVector<llvm::DILineInfo>& Symbolize(ui64 addr);
+    const std::vector<std::string>& Symbolize(ui64 addr);
 
 private:
     NPerforator::NGsym::TSymbolizer Symbolizer_;
 
-    absl::flat_hash_map<ui64, NPerforator::NGsym::TSmallVector<llvm::DILineInfo>>
-        SymbolizationCache_;
+    absl::flat_hash_map<ui64, std::vector<std::string>> SymbolizationCache_;
 };
 
 class TServicePerfTopAggregator final {
@@ -37,8 +39,6 @@ public:
     void AddProfile(TArrayRef<const char> service, const NPerforator::NProto::NPProf::ProfileLight& profile);
 
     void MergeAggregator(const TServicePerfTopAggregator& other);
-
-    void DebugPrint() const;
 
     struct Function final {
         TString Name;

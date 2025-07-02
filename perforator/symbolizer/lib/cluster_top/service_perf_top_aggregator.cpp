@@ -73,10 +73,16 @@ TCachingGSYMSymbolizer::TCachingGSYMSymbolizer(std::string_view gsymPath) : Symb
     SymbolizationCache_.reserve(128 * 1024);
 }
 
-const NPerforator::NGsym::TSmallVector<llvm::DILineInfo>& TCachingGSYMSymbolizer::Symbolize(ui64 addr) {
+const std::vector<std::string>& TCachingGSYMSymbolizer::Symbolize(ui64 addr) {
     auto [it, inserted] = SymbolizationCache_.try_emplace(addr);
     if (inserted) {
-        it->second = Symbolizer_.Symbolize(addr);
+        auto& frames = it->second;
+
+        auto symbolizationResult = Symbolizer_.Symbolize(addr);
+        frames.reserve(symbolizationResult.size());
+        for (auto& frame : symbolizationResult) {
+            frames.push_back(std::move(frame.FunctionName));
+        }
     }
 
     return it->second;
@@ -184,7 +190,7 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const 
 
                 for (const auto& frame : symbolizationResult) {
                     symbolized.emplace_back(
-                        frame.FunctionName,
+                        frame,
                         TLifetimeSoundnessReason{"symbolizationResult is cached in symbolizer, thus its lifetime is tied to the aggregator"}
                     );
                 }
