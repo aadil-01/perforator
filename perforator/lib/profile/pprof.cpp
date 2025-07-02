@@ -435,10 +435,14 @@ private:
             }
         }
 
-        builder.AddStack(kernelStack.Finish());
-        builder.AddStack(userStack.Finish());
         if (pythonStack) {
             builder.AddStack(pythonStack->Finish());
+        }
+        if (!kernelStack.Empty()) {
+            builder.AddStack(kernelStack.Finish());
+        }
+        if (!userStack.Empty()) {
+            builder.AddStack(userStack.Finish());
         }
     }
 

@@ -560,6 +560,10 @@ public:
             , Stack_{builder}
         {}
 
+        bool Empty() const {
+            return !HasTopFrame_;
+        }
+
         TSimpleStackBuilder& SetKind(NProto::NProfile::StackKind kind) {
             Stack_.SetKind(kind);
             return *this;
