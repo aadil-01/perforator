@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-06-17T12:02:13.383Z",
+    "created": "2025-07-04T16:40:09.140Z",
     "pr": {
-      "id": 9073535,
-      "author": "baymer",
-      "summary": "FBP-2252: Добавить rspack в nots/builder"
+      "id": 9219107,
+      "author": "vturov",
+      "summary": "FBP-1208: Повторить локальные оптимизации для тестов (jest, eslint, typecheck)"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:8987100655"
+      "uri": "sbr:9134381609"
     },
     "darwin-arm64": {
-      "uri": "sbr:8987097290"
+      "uri": "sbr:9134380416"
     },
     "linux": {
-      "uri": "sbr:8987106483"
+      "uri": "sbr:9134384147"
     },
     "linux-aarch64": {
-      "uri": "sbr:8987103575"
+      "uri": "sbr:9134383064"
     }
   }
 }
