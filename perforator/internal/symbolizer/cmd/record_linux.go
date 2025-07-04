@@ -166,13 +166,15 @@ func record(opts *recordOptions, args []string) error {
 		return err
 	}
 
-	postProcessResults := python.PostprocessSymbolizedProfileWithPython(profile)
-	if len(postProcessResults.Errors) > 0 {
-		logger.Fmt().Debugf("Errors on merge python and native stacks: %v", errors.Join(postProcessResults.Errors...))
-	}
+	if opts.enableInterpreterStackMerging {
+		postProcessResults := python.PostprocessSymbolizedProfileWithPython(profile)
+		if len(postProcessResults.Errors) > 0 {
+			logger.Fmt().Debugf("Errors on merge python and native stacks: %v", errors.Join(postProcessResults.Errors...))
+		}
 
-	mergedStacksPercentage := 100 * float64(postProcessResults.MergedStacksCount) / float64(postProcessResults.MergedStacksCount+postProcessResults.UnmergedStacksCount)
-	logger.Fmt().Debugf("Merged stacks percentage %.2f%%", mergedStacksPercentage)
+		mergedStacksPercentage := 100 * float64(postProcessResults.MergedStacksCount) / float64(postProcessResults.MergedStacksCount+postProcessResults.UnmergedStacksCount)
+		logger.Fmt().Debugf("Merged stacks percentage %.2f%%", mergedStacksPercentage)
+	}
 
 	if opts.upload {
 		profileID, taskID, err := uploadProfile(app, opts, profile, startTime)
