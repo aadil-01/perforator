@@ -84,6 +84,14 @@ const (
 	RenderAddressesAlways       AddressRenderPolicy = "always"
 )
 
+var (
+	AddressRenderPolicies = []AddressRenderPolicy{
+		RenderAddressesNever,
+		RenderAddressesUnsymbolized,
+		RenderAddressesAlways,
+	}
+)
+
 ////////////////////////////////////////////////////////////////////////////////
 
 type locationMeta struct {

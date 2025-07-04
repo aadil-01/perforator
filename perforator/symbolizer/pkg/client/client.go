@@ -31,7 +31,13 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type FlamegraphOptions = perforator.FlamegraphOptions
+type TextProfileOptions = perforator.TextProfileOptions
 type RenderFormat = perforator.RenderFormat
+
+type FormatOptions struct {
+	Flamegraph  *FlamegraphOptions
+	TextProfile *TextProfileOptions
+}
 
 type Config struct {
 	MaxReceiveMessageSize uint64
@@ -564,10 +570,11 @@ func (c *Client) UploadProfile(ctx context.Context, meta *perforator.ProfileMeta
 	return res.GetProfileID(), nil
 }
 
+// pass one of flamegraphOptions or textProfileOptions, the other can be nil.
 func (c *Client) UploadRenderedProfile(
 	ctx context.Context,
 	meta *perforator.ProfileMeta,
-	flamegraphOptions *perforator.FlamegraphOptions,
+	formatOptions FormatOptions,
 	profile *pprof.Profile,
 ) (profileID string, taskID string, err error) {
 	profileID, err = c.UploadProfile(ctx, meta, profile)
@@ -581,13 +588,10 @@ func (c *Client) UploadRenderedProfile(
 	time.Sleep(time.Second * 5)
 
 	// Render the profile.
-	taskID, _, err = c.MergeProfilesProto(ctx, &perforator.MergeProfilesRequest{
+	req := &perforator.MergeProfilesRequest{
 		Format: &perforator.RenderFormat{
 			Symbolize: &perforator.SymbolizeOptions{
 				Symbolize: ptr.Bool(false),
-			},
-			Format: &perforator.RenderFormat_Flamegraph{
-				Flamegraph: flamegraphOptions,
 			},
 		},
 		Query: &perforator.ProfileQuery{
@@ -596,7 +600,18 @@ func (c *Client) UploadRenderedProfile(
 				From: timestamppb.New(meta.GetTimestamp().AsTime().Add(-time.Minute)),
 			},
 		},
-	})
+	}
+	if formatOptions.Flamegraph != nil {
+		req.Format.Format = &perforator.RenderFormat_Flamegraph{
+			Flamegraph: formatOptions.Flamegraph,
+		}
+	} else {
+		req.Format.Format = &perforator.RenderFormat_TextProfile{
+			TextProfile: formatOptions.TextProfile,
+		}
+	}
+
+	taskID, _, err = c.MergeProfilesProto(ctx, req)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to render uploaded profile: %w", err)
 	}

@@ -32,7 +32,7 @@ var (
 
 	format                        string
 	pgoFormat                     string
-	flamegraphOptions             client.FlamegraphOptions
+	formatOpts                    client.FormatOptions
 	profileSinkOptions            sinkOptions
 	enableSymbolization           bool
 	enableInterpreterStackMerging bool
@@ -47,50 +47,54 @@ var (
 	profilerVersions = []string{}
 )
 
-func makeRenderFormat(format string, options *client.FlamegraphOptions, enableSymbolization, enableStackMerge bool) (*proto.RenderFormat, error) {
+func fillBaseRenderFormat(enableSymbolization, enableStackMerge bool) *proto.RenderFormat {
+	return &proto.RenderFormat{
+		Symbolize: &proto.SymbolizeOptions{
+			Symbolize: ptr.Bool(enableSymbolization),
+		},
+		Postprocessing: &proto.PostprocessOptions{
+			MergePythonAndNativeStacks: ptr.Bool(enableStackMerge),
+		},
+	}
+}
+
+func makeRenderFormat(format string, formatOptions client.FormatOptions, enableSymbolization, enableStackMerge bool) (*proto.RenderFormat, error) {
+	rf := fillBaseRenderFormat(enableSymbolization, enableStackMerge)
+
 	switch format {
 	case "flamegraph", "flame", "fg":
-		return &proto.RenderFormat{
-			Symbolize: &proto.SymbolizeOptions{
-				Symbolize: ptr.Bool(enableSymbolization),
-			},
-			Postprocessing: &proto.PostprocessOptions{
-				MergePythonAndNativeStacks: ptr.Bool(enableStackMerge),
-			},
-			Format: &proto.RenderFormat_Flamegraph{
-				Flamegraph: options,
-			},
-		}, nil
+		rf.Format = &proto.RenderFormat_Flamegraph{
+			Flamegraph: formatOptions.Flamegraph,
+		}
 
 	case "visualisation", "vis", "html-v2":
-		return &proto.RenderFormat{
-			Symbolize: &proto.SymbolizeOptions{
-				Symbolize: ptr.Bool(enableSymbolization),
-			},
-			Postprocessing: &proto.PostprocessOptions{
-				MergePythonAndNativeStacks: ptr.Bool(enableStackMerge),
-			},
-			Format: &proto.RenderFormat_HTMLVisualisation{
-				HTMLVisualisation: options,
-			},
-		}, nil
+		rf.Format = &proto.RenderFormat_HTMLVisualisation{
+			HTMLVisualisation: formatOptions.Flamegraph,
+		}
 
 	case "pprof":
-		return &proto.RenderFormat{
-			Symbolize: &proto.SymbolizeOptions{
-				Symbolize: ptr.Bool(enableSymbolization),
-			},
-			Postprocessing: &proto.PostprocessOptions{
-				MergePythonAndNativeStacks: ptr.Bool(enableStackMerge),
-			},
-			Format: &proto.RenderFormat_RawProfile{
-				RawProfile: &proto.RawProfileOptions{},
-			},
-		}, nil
+		rf.Format = &proto.RenderFormat_RawProfile{
+			RawProfile: &proto.RawProfileOptions{},
+		}
+
+	case "text":
+		rf.Format = &proto.RenderFormat_TextProfile{
+			TextProfile: formatOptions.TextProfile,
+		}
 
 	default:
 		return nil, fmt.Errorf("unsuppported format %s", format)
 	}
+
+	return rf, nil
+}
+
+func formatAddressRenderPolicies() string {
+	stringPolicies := make([]string, len(render.AddressRenderPolicies))
+	for i, policy := range render.AddressRenderPolicies {
+		stringPolicies[i] = string(policy)
+	}
+	return "[" + strings.Join(stringPolicies, ", ") + "]"
 }
 
 type sinkOptions struct {
@@ -211,7 +215,7 @@ func fetchProfile() error {
 	}
 	defer cli.Shutdown()
 
-	format, err := makeRenderFormat(format, &flamegraphOptions, enableSymbolization, enableInterpreterStackMerging)
+	format, err := makeRenderFormat(format, formatOpts, enableSymbolization, enableInterpreterStackMerging)
 	if err != nil {
 		return err
 	}
@@ -287,7 +291,11 @@ func fetchDiffProfile(args []string) error {
 	}
 	defer cli.Shutdown()
 
-	format, err := makeRenderFormat(format, &flamegraphOptions, enableSymbolization, enableInterpreterStackMerging)
+	// We do not support text format for diff profile
+	if strings.Contains(format, string(render.PlainTextFormat)) {
+		return fmt.Errorf("unsupported format for diff profile: %s", format)
+	}
+	format, err := makeRenderFormat(format, formatOpts, enableSymbolization, enableInterpreterStackMerging)
 	if err != nil {
 		return err
 	}
@@ -526,9 +534,7 @@ func addCommonSelectorOptions(cmd *cobra.Command) {
 	)
 }
 
-func addFlamegraphRenderOptions(cmd *cobra.Command) {
-	bindFlamegraphRenderOptions(cmd.Flags(), &flamegraphOptions)
-
+func addCommonRenderOptions(cmd *cobra.Command) {
 	cmd.Flags().BoolVar(
 		&enableSymbolization,
 		"symbolize",
@@ -543,7 +549,59 @@ func addFlamegraphRenderOptions(cmd *cobra.Command) {
 	)
 }
 
-func bindFlamegraphRenderOptions(flags *pflag.FlagSet, options *client.FlamegraphOptions) {
+func addTextProfileRenderOptions(cmd *cobra.Command) {
+	bindTextProfileRenderOptions(cmd.Flags(), formatOpts.TextProfile)
+}
+
+func bindTextProfileRenderOptions(flags *pflag.FlagSet, options *proto.TextProfileOptions) {
+	flags.BoolVar(
+		maybe(&options.ShowLineNumbers),
+		"text-line-numbers",
+		false,
+		"Show line numbers in the text profile output",
+	)
+	flags.Uint32Var(
+		maybe(&options.MaxSamples),
+		"text-max-samples",
+		100,
+		"Maximum number of samples to render (0 means no limit)",
+	)
+	flags.BoolVar(
+		maybe(&options.ShowFileNames),
+		"text-show-file-names",
+		true,
+		"Show file names after function names in the text profile",
+	)
+
+	AddressRenderPolicies := formatAddressRenderPolicies()
+	addressRenderPolicy := xpflag.NewFunc(func(val string) error {
+		switch render.AddressRenderPolicy(val) {
+		case render.RenderAddressesNever:
+			options.RenderAddresses = ptr.T(proto.AddressRenderPolicy_RenderAddressesNever)
+			return nil
+		case render.RenderAddressesUnsymbolized:
+			options.RenderAddresses = ptr.T(proto.AddressRenderPolicy_RenderAddressesUnsymbolized)
+			return nil
+		case render.RenderAddressesAlways:
+			options.RenderAddresses = ptr.T(proto.AddressRenderPolicy_RenderAddressesAlways)
+			return nil
+		default:
+			return fmt.Errorf("unexpected address render policy %s, expected one of %s", val, AddressRenderPolicies)
+		}
+	})
+
+	flags.Var(
+		addressRenderPolicy,
+		"text-show-addresses",
+		"Show addresses in text profile output, one of "+AddressRenderPolicies,
+	)
+}
+
+func addFlamegraphRenderOptions(cmd *cobra.Command) {
+	bindFlamegraphRenderOptions(cmd.Flags(), formatOpts.Flamegraph)
+}
+
+func bindFlamegraphRenderOptions(flags *pflag.FlagSet, options *proto.FlamegraphOptions) {
 	flags.Float64Var(
 		maybe(&options.MinWeight),
 		"flamegraph-min-weight",
@@ -569,11 +627,7 @@ func bindFlamegraphRenderOptions(flags *pflag.FlagSet, options *client.Flamegrap
 		"Show file names in the flamegraph",
 	)
 
-	addressRenderPolicies := "[" + strings.Join([]string{
-		string(render.RenderAddressesNever),
-		string(render.RenderAddressesUnsymbolized),
-		string(render.RenderAddressesAlways),
-	}, ", ") + "]"
+	AddressRenderPolicies := formatAddressRenderPolicies()
 	addressRenderPolicy := xpflag.NewFunc(func(val string) error {
 		switch render.AddressRenderPolicy(val) {
 		case render.RenderAddressesNever:
@@ -586,13 +640,13 @@ func bindFlamegraphRenderOptions(flags *pflag.FlagSet, options *client.Flamegrap
 			options.RenderAddresses = ptr.T(proto.AddressRenderPolicy_RenderAddressesAlways)
 			return nil
 		default:
-			return fmt.Errorf("unexpected address render policy %s, expected one of %s", val, addressRenderPolicies)
+			return fmt.Errorf("unexpected address render policy %s, expected one of %s", val, AddressRenderPolicies)
 		}
 	})
 	flags.Var(
 		addressRenderPolicy,
 		"flamegraph-show-addresses",
-		"Show addresses inside flamegraph, one of "+addressRenderPolicies,
+		"Show addresses inside flamegraph, one of "+AddressRenderPolicies,
 	)
 }
 
@@ -607,7 +661,9 @@ func setupFetchCmd() *cobra.Command {
 	addCommonProxyFlags(fetchCmd)
 	addLoggingFlags(fetchCmd)
 	addCommonSelectorOptions(fetchCmd)
+	addCommonRenderOptions(fetchCmd)
 	addFlamegraphRenderOptions(fetchCmd)
+	addTextProfileRenderOptions(fetchCmd)
 	addSinkOptions(fetchCmd, &profileSinkOptions)
 
 	// Profile aggregation options
@@ -695,7 +751,7 @@ func setupFetchCmd() *cobra.Command {
 		"format",
 		"f",
 		"flamegraph",
-		"Format of the profile (pprof, flamegraph or pgo)",
+		"Format of the profile (pprof, flamegraph or text)",
 	)
 
 	return fetchCmd
@@ -705,7 +761,8 @@ func setupDiffCmd() *cobra.Command {
 	addCommonProxyFlags(diffCmd)
 	addLoggingFlags(diffCmd)
 	addCommonSelectorOptions(diffCmd)
-	addFlamegraphRenderOptions(diffCmd)
+	addCommonRenderOptions(diffCmd)
+	addFlamegraphRenderOptions(diffCmd) // flamegraph render options are supported, but not text render options
 	addSinkOptions(diffCmd, &profileSinkOptions)
 	return diffCmd
 }
@@ -727,7 +784,17 @@ func setupPGOCmd() *cobra.Command {
 	return pgoCmd
 }
 
+func ensureFormatOptions(opts *client.FormatOptions) {
+	if opts.Flamegraph == nil {
+		opts.Flamegraph = &client.FlamegraphOptions{}
+	}
+	if opts.TextProfile == nil {
+		opts.TextProfile = &client.TextProfileOptions{}
+	}
+}
+
 func init() {
+	ensureFormatOptions(&formatOpts)
 	rootCmd.AddCommand(setupFetchCmd())
 	rootCmd.AddCommand(setupDiffCmd())
 	rootCmd.AddCommand(setupPGOCmd())

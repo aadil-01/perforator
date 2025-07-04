@@ -46,6 +46,7 @@ import (
 	"github.com/yandex/perforator/perforator/pkg/xelf"
 	"github.com/yandex/perforator/perforator/pkg/xlog"
 	"github.com/yandex/perforator/perforator/proto/perforator"
+	symbolizerClient "github.com/yandex/perforator/perforator/symbolizer/pkg/client"
 )
 
 var (
@@ -73,7 +74,7 @@ type recordOptions struct {
 	uploadURL string
 
 	renderFormat                  string
-	flamegraphOptions             perforator.FlamegraphOptions
+	formatOpts                    symbolizerClient.FormatOptions
 	profileSinkOptions            sinkOptions
 	enableSymbolization           bool
 	enableInterpreterStackMerging bool
@@ -112,7 +113,8 @@ func (o *recordOptions) Bind(cmd *cobra.Command) {
 
 	cmd.MarkFlagsMutuallyExclusive("freq", "count")
 
-	bindFlamegraphRenderOptions(cmd.Flags(), &o.flamegraphOptions)
+	bindFlamegraphRenderOptions(cmd.Flags(), o.formatOpts.Flamegraph)
+	bindTextProfileRenderOptions(cmd.Flags(), o.formatOpts.TextProfile)
 	addSinkOptions(cmd, &o.profileSinkOptions)
 }
 
@@ -149,7 +151,7 @@ func record(opts *recordOptions, args []string) error {
 	ctx := app.Context()
 
 	// let's validate the format before we run profiling
-	format, err := makeRenderFormat(opts.renderFormat, &opts.flamegraphOptions, opts.enableSymbolization, opts.enableInterpreterStackMerging)
+	format, err := makeRenderFormat(opts.renderFormat, opts.formatOpts, opts.enableSymbolization, opts.enableInterpreterStackMerging)
 	if err != nil {
 		return fmt.Errorf("failed to build render format: %w", err)
 	}
@@ -555,7 +557,7 @@ func uploadProfile(app *cli.App, opts *recordOptions, profile *pprof.Profile, st
 		Timestamp: timestamppb.New(startTime),
 	}
 
-	profileID, taskID, err = app.Client().UploadRenderedProfile(app.Context(), meta, &opts.flamegraphOptions, profile)
+	profileID, taskID, err = app.Client().UploadRenderedProfile(app.Context(), meta, opts.formatOpts, profile)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to upload profile: %w", err)
 	}
@@ -781,7 +783,12 @@ func runSubProcess(ctx context.Context, args []string, register func(int) error)
 }
 
 func makeRecordCommand() *cobra.Command {
-	opts := &recordOptions{}
+	opts := &recordOptions{
+		formatOpts: symbolizerClient.FormatOptions{
+			Flamegraph:  &symbolizerClient.FlamegraphOptions{},
+			TextProfile: &symbolizerClient.TextProfileOptions{},
+		},
+	}
 
 	cmd := &cobra.Command{
 		Use:   "record",
