@@ -1017,12 +1017,46 @@ public:
         return TValueType{Profile_, TValueTypeId::FromInternalIndex(index)};
     }
 
-    TMaybe<google::protobuf::Timestamp> GetTimestamp() const {
+    TMaybe<google::protobuf::Timestamp> GetProtoTimestamp() const {
         if (!Profile_->samples().has_timestamps()) {
             return Nothing();
         }
 
-        Y_ABORT_UNLESS(false, "Unimplemented");
+        auto start = Profile_->samples().timestamps().start_timestamp();
+        auto delta = Profile_->samples().timestamps().delta_nanoseconds(*Index_);
+
+        static constexpr i64 nanosecondsInSecond = 1'000'000'000;
+        i64 deltaSeconds = delta / nanosecondsInSecond;
+        i64 deltaNanoseconds = delta % nanosecondsInSecond;
+        if (deltaNanoseconds < 0) {
+            deltaNanoseconds += nanosecondsInSecond;
+            Y_ASSERT(deltaNanoseconds >= 0);
+            deltaSeconds -= 1;
+        }
+
+        i64 seconds = start.seconds() + deltaSeconds;
+        i64 nanos = i64{start.nanos()} + deltaNanoseconds;
+        if (nanos >= deltaNanoseconds) {
+            nanos -= deltaNanoseconds;
+            seconds += 1;
+        }
+        Y_ASSERT(nanos >= 0);
+        Y_ASSERT(nanos < nanosecondsInSecond);
+
+        google::protobuf::Timestamp ts;
+        ts.set_seconds(seconds);
+        ts.set_nanos(nanos);
+        return ts;
+    }
+
+    TMaybe<TInstant> GetInstantTimestamp() const {
+        auto ts = GetProtoTimestamp();
+        if (!ts) {
+            return Nothing();
+        }
+
+        ui64 micros = ts->seconds() * 1'000'000 + ts->nanos() / 1000;
+        return TInstant::MicroSeconds(micros);
     }
 
     void DumpJson(NJson::TJsonWriter& writer) const {
@@ -1034,10 +1068,9 @@ public:
         GetKey().DumpJson(writer);
 
         writer.WriteKey("timestamp");
-        if (auto ts = GetTimestamp()) {
+        if (auto ts = GetInstantTimestamp()) {
             writer.OpenMap();
-            writer.Write("seconds", ts->seconds());
-            writer.Write("nanoseconds", ts->nanos());
+            writer.Write("microseconds", ts->MicroSeconds());
             writer.CloseMap();
         } else {
             writer.WriteNull();

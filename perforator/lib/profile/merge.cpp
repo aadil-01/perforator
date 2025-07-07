@@ -322,7 +322,7 @@ private:
     void MergeSample(TSample sample) {
         auto builder = Builder_.AddSample();
 
-        if (auto ts = sample.GetTimestamp(); ts && !Policy_.MergeTimestamps()) {
+        if (auto ts = sample.GetProtoTimestamp(); ts && !Policy_.MergeTimestamps()) {
             builder.SetTimestamp(ts->seconds(), ts->nanos());
         }
 
@@ -337,7 +337,7 @@ private:
 
     TValueTypeId MapValueType(TValueType type) {
         // TODO(sskvor): If different profiles have different value type sets,
-        // the process of merging should fail inside ProfileBuilder on the first
+        // the process of merging should fail inside TProfileBuilder on the first
         // call to "AddValueType" that follows calls to "AddSample".
         return ValueTypes_.TryMap(type.GetIndex(), [&, this] {
             return Builder_.AddValueType(

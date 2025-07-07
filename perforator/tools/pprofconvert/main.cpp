@@ -2,6 +2,7 @@
 #include <perforator/lib/profile/parallel_merge.h>
 #include <perforator/lib/profile/pprof.h>
 #include <perforator/lib/profile/profile.h>
+#include <perforator/lib/profile/flat_diffable.h>
 #include <perforator/lib/profile/validate.h>
 
 #include <library/cpp/containers/absl_flat_hash/flat_hash_map.h>
@@ -566,5 +567,22 @@ int main(int argc, const char* argv[]) {
             Cerr << NPerforator::NProto::NProfile::StackKind_Name(kind) << ":\n";
             Cerr << '\t' << commonWeight[kind] << " / " << totalWeight[kind] << " (" << Prec(commonWeight[kind] * 100.0 / totalWeight[kind], PREC_NDIGITS, 8) << "% common samples)" << Endl;
         }
+    }
+
+    if (argv[1] == "dump-diffable"sv) {
+        Y_ENSURE(argc == 3);
+
+        auto proto = ParseProtoTimed<NPerforator::NProto::NProfile::Profile>(argv[2]);
+        NPerforator::NProfile::TProfile profile{&proto};
+        NPerforator::NProfile::TFlatDiffableProfile{profile}.WriteTo(Cout);
+    }
+
+    if (argv[1] == "dump-diffable-pprof"sv) {
+        Y_ENSURE(argc == 3);
+
+        auto profile = ParseProtoTimed<NPerforator::NProto::NPProf::Profile>(argv[2]);
+        NPerforator::NProfile::TFlatDiffableProfile{profile, {
+            .LabelBlacklist = {"comm"},
+        }}.WriteTo(Cout);
     }
 }

@@ -666,7 +666,6 @@ private:
 
     void ConvertSamples() {
         const auto samples = SourceProfile_.Samples();
-        // const NProto::NProfile::SampleKeys& keys = NewProfile_.sample_keys();
 
         for (TSample newSample : samples) {
             NProto::NPProf::Sample* oldSample = OldProfile_.add_sample();
@@ -713,17 +712,17 @@ private:
             }
         }
 
-        if (kstackId) {
-            consumer(key.GetStack(*kstackId));
-        }
-        if (ustackId) {
-            consumer(key.GetStack(*ustackId));
-        }
         for (i32 i = 0; i < key.GetStackCount(); ++i) {
             auto&& stack = key.GetStack(i);
             if (stack.GetKind() == NPerforator::NProto::NProfile::StackKind::Other) {
                 consumer(stack);
             }
+        }
+        if (kstackId) {
+            consumer(key.GetStack(*kstackId));
+        }
+        if (ustackId) {
+            consumer(key.GetStack(*ustackId));
         }
     }
 

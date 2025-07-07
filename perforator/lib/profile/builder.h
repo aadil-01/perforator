@@ -22,18 +22,24 @@ namespace NPerforator::NProfile {
     bool operator==(const Self&) const noexcept = default; \
     bool operator!=(const Self&) const noexcept = default;
 
-#define Y_DEFAULT_HASHABLE_TYPE(Self) \
+#define Y_DEFAULT_ABSL_HASHABLE_TYPE(Self) \
     template <typename H> \
     friend H AbslHashValue(H hash, const Self& self) { \
         return H::combine(std::move(hash), NIntrospection::Members(self)); \
     }
+
+template <typename A>
+ui64 HashArrayFast(A&& array) {
+    static_assert(std::has_unique_object_representations_v<std::decay_t<decltype(array[0])>>);
+    return CityHash64(reinterpret_cast<const char*>(array.data()), array.size() * sizeof(array[0]));
+}
 
 struct TValueTypeInfo {
     TStringId Type;
     TStringId Unit;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TValueTypeInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TValueTypeInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TValueTypeInfo);
 };
 
 struct TStringLabelInfo {
@@ -41,7 +47,7 @@ struct TStringLabelInfo {
     TStringId Value;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TStringLabelInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TStringLabelInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TStringLabelInfo);
 };
 
 struct TNumberLabelInfo {
@@ -49,7 +55,7 @@ struct TNumberLabelInfo {
     i64 Value;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TNumberLabelInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TNumberLabelInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TNumberLabelInfo);
 };
 
 struct TThreadInfo {
@@ -60,7 +66,17 @@ struct TThreadInfo {
     TStackVec<TStringId, 8> ContainerIdx;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TThreadInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TThreadInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TThreadInfo);
+
+    ui64 StableHashValue() const {
+        return MultiHash(
+            ProcessId,
+            ThreadId,
+            *ProcessNameIdx,
+            *ThreadNameIdx,
+            HashArrayFast(ContainerIdx)
+        );
+    }
 };
 
 struct TBinaryInfo {
@@ -68,7 +84,7 @@ struct TBinaryInfo {
     TStringId Path = TStringId::Zero();
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TBinaryInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TBinaryInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TBinaryInfo);
 };
 
 struct TFunctionInfo {
@@ -78,7 +94,7 @@ struct TFunctionInfo {
     ui32 StartLine = 0;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TFunctionInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TFunctionInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TFunctionInfo);
 };
 
 struct TSourceLineInfo {
@@ -87,14 +103,18 @@ struct TSourceLineInfo {
     ui32 Column = 0;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TSourceLineInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TSourceLineInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TSourceLineInfo);
 };
 
 struct TInlineChainInfo {
     TSmallVec<TSourceLineInfo> Lines;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TInlineChainInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TInlineChainInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TInlineChainInfo);
+
+    ui64 StableHashValue() const {
+        return HashArrayFast(Lines);
+    }
 };
 
 struct TStackFrameInfo {
@@ -103,14 +123,18 @@ struct TStackFrameInfo {
     TInlineChainId InlineChain = TInlineChainId::Zero();
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TStackFrameInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TStackFrameInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TStackFrameInfo);
 };
 
 struct TStackSegmentInfo {
     TStackVec<TStackFrameId, 64> Stack;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TStackSegmentInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TStackSegmentInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TStackSegmentInfo);
+
+    ui64 StableHashValue() const {
+        return HashArrayFast(Stack);
+    }
 };
 
 struct TStackInfo {
@@ -120,13 +144,21 @@ struct TStackInfo {
     TStackSegmentId StackSegment = TStackSegmentId::Zero();
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TStackInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TStackInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TStackInfo);
 };
 
 struct TSampleKeyInfo {
     TThreadId Thread = TThreadId::Zero();
     TStackVec<TStackId, 2> Stacks;
     TStackVec<TLabelId, 8> Labels;
+
+    ui64 StableHashValue() const {
+        return MultiHash(
+            *Thread,
+            HashArrayFast(Stacks),
+            HashArrayFast(Labels)
+        );
+    }
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TSampleKeyInfo);
 
@@ -151,7 +183,7 @@ struct TSampleTimestamp {
     ui32 NanoSeconds = 0;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TSampleTimestamp);
-    Y_DEFAULT_HASHABLE_TYPE(TSampleTimestamp);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TSampleTimestamp);
 };
 
 struct TSampleInfo {
@@ -160,7 +192,7 @@ struct TSampleInfo {
     TStackVec<std::pair<TValueTypeId, ui64>, 4> Values;
 
     Y_DEFAULT_EQUALITY_COMPARABLE_TYPE(TSampleInfo);
-    Y_DEFAULT_HASHABLE_TYPE(TSampleInfo);
+    Y_DEFAULT_ABSL_HASHABLE_TYPE(TSampleInfo);
 };
 
 ////////////////////////////////////////////////////////////////////////////////

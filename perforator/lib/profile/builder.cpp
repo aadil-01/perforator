@@ -375,7 +375,8 @@ private:
 
     template <typename Map, typename Key, typename Index = typename Map::mapped_type>
     Index FetchHashedLossy(Map& map, const Key& key) {
-        return FetchImpl(map, absl::HashOf(key) ^ 0xdeadbeefdeadbeefull, key);
+        ui64 hash = key.StableHashValue() ^ 0xdeadbeefdeadbeefull;
+        return FetchImpl(map, hash, key);
     }
 
 private:

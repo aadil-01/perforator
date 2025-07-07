@@ -21,11 +21,11 @@ public:
         , LittleSize_{LittleMapping_.size()}
     {}
 
-    const V& At(K oldIndex) const {
-        if (IsLittle(oldIndex)) {
-            return LittleMapping_.at(oldIndex).GetRef();
+    const V& At(K key) const {
+        if (IsLittle(key)) {
+            return LittleMapping_.at(key).GetRef();
         }
-        return BigMapping_.at(oldIndex);
+        return BigMapping_.at(key);
     }
 
     bool TryEmplace(K key, V&& value) {
@@ -34,6 +34,10 @@ public:
         } else {
             return TryEmplaceBig(key, std::move(value));
         }
+    }
+
+    void EmplaceUnique(K key, V&& value) {
+        Y_ENSURE(TryEmplace(key, std::move(value)), "Duplicate key " << key);
     }
 
     size_t Size() const {
