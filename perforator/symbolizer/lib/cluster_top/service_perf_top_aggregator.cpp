@@ -51,9 +51,6 @@ public:
     TStringViewConvertibleToString(const TString&) = delete;
     TStringViewConvertibleToString(const std::string&) = delete;
 
-    explicit constexpr TStringViewConvertibleToString(TStringBuf data) : Data_{data} {}
-    explicit constexpr TStringViewConvertibleToString(std::string_view data) : Data_{data} {}
-
     TStringViewConvertibleToString(const TString& data, TLifetimeSoundnessReason) : Data_{data} {}
     TStringViewConvertibleToString(const std::string& data, TLifetimeSoundnessReason) : Data_{data} {}
     TStringViewConvertibleToString(std::string_view data, TLifetimeSoundnessReason) : Data_{data} {}
@@ -68,6 +65,115 @@ public:
 private:
     TStringBuf Data_;
 };
+
+struct SymbolizedProfileData final {
+    std::vector<std::string_view> AllFunctions;
+
+    // Indexes into AllFunctions
+    absl::flat_hash_map<ui64, TSmallVector<ui64>> FramesByLocationId;
+};
+
+SymbolizedProfileData SymbolizeProfile(
+    absl::flat_hash_map<TString, TCachingGSYMSymbolizer>& symbolizers,
+    const NPerforator::NProto::NPProf::ProfileLight& profile
+) {
+    absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Function*> functionByIdMap;
+    for (const auto& function : profile.Getfunction()) {
+        functionByIdMap[function.id()] = &function;
+    }
+
+    absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Mapping*> mappingByIdMap;
+    for (const auto& mapping : profile.Getmapping()) {
+        mappingByIdMap[mapping.id()] = &mapping;
+    }
+
+    absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Location*> locationByIdMap;
+    for (const auto& location : profile.Getlocation()) {
+        locationByIdMap[location.id()] = &location;
+    }
+
+    SymbolizedProfileData result{};
+    auto& allFunctions = result.AllFunctions;
+    auto& framesByLocationId = result.FramesByLocationId;
+
+    allFunctions.reserve(profile.locationSize() * 2);
+    framesByLocationId.reserve(profile.locationSize());
+
+    // Every string, for which the views in this map are stored, outlives the map:
+    // * some strings are static/constexpr
+    // * some strings belong to the profile
+    // * some strings belong to the TServicePerfTopAggregator (i.e. symbolization cache)
+    absl::flat_hash_map<std::string_view, ui64> symbolizedFunctionsMapping;
+    symbolizedFunctionsMapping.reserve(profile.locationSize() * 2);
+
+    for (const auto& location : profile.Getlocation()) {
+        TSmallVector<TStringViewConvertibleToString> symbolized{};
+        if (location.lineSize() > 0) {
+            // already symbolized, probably kernel function
+            for (const auto& line : location.Getline()) {
+                const auto functionId = line.function_id();
+                if (functionId == 0) {
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    continue;
+                }
+                const auto& function = *functionByIdMap.at(functionId);
+                symbolized.emplace_back(
+                    profile.string_table(function.name()),
+                    TLifetimeSoundnessReason{"profile outlives everything in this function"}
+                );
+            }
+        } else {
+            [&symbolized, &location, &mappingByIdMap, &profile, &symbolizers]() {
+                const auto mappingId = location.mapping_id();
+                if (mappingId == 0) {
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    return;
+                }
+                const auto& mapping = *mappingByIdMap.at(mappingId);
+
+                if (mapping.build_id() == 0) {
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    return;
+                }
+                const auto& buildId = profile.string_table(mapping.build_id());
+
+                auto symbolizerIt = symbolizers.find(buildId);
+                if (symbolizerIt == symbolizers.end()) {
+                    symbolized.emplace_back(kNoGSYMLocation, TLifetimeSoundnessReason{"kNoGSYMLocation is static"});
+                    return;
+                }
+                auto& symbolizer = symbolizerIt->second;
+
+                const auto address = location.address() + mapping.file_offset() - mapping.memory_start();
+                const auto& symbolizationResult = symbolizer.Symbolize(address);
+
+                if (symbolizationResult.empty()) {
+                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    return;
+                }
+
+                for (const auto& frame : symbolizationResult) {
+                    symbolized.emplace_back(
+                        frame,
+                        TLifetimeSoundnessReason{"symbolizationResult is cached in symbolizer, thus its lifetime is tied to the aggregator"}
+                    );
+                }
+            }();
+        }
+
+        auto& frames = framesByLocationId[location.id()];
+        for (const auto& function : symbolized) {
+            const auto [it, inserted] = symbolizedFunctionsMapping.try_emplace(function, allFunctions.size());
+            if (inserted) {
+                allFunctions.push_back(function);
+            }
+
+            frames.push_back(it->second);
+        }
+    }
+
+    return result;
+}
 
 }
 
@@ -119,128 +225,81 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, TArray
     AddProfile(service, profile);
 }
 
-void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const NPerforator::NProto::NPProf::ProfileLight& profile) {
+void TServicePerfTopAggregator::AddProfile(TArrayRef<const char>, const NPerforator::NProto::NPProf::ProfileLight& profile) {
     MaybePruneCaches();
 
-    absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Function*> functionByIdMap;
-    for (const auto& function : profile.Getfunction()) {
-        functionByIdMap[function.id()] = &function;
-    }
+    const auto symbolizedProfileData = SymbolizeProfile(Symbolizers_, profile);
+    const auto& allFunctions = symbolizedProfileData.AllFunctions;
+    const auto& framesByLocationId = symbolizedProfileData.FramesByLocationId;
 
-    absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Mapping*> mappingByIdMap;
-    for (const auto& mapping : profile.Getmapping()) {
-        mappingByIdMap[mapping.id()] = &mapping;
-    }
+    std::vector<ui128> cumulativeCyclesCountByFunctionId;
+    cumulativeCyclesCountByFunctionId.assign(allFunctions.size(), 0);
 
-    absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Location*> locationByIdMap;
-    for (const auto& location : profile.Getlocation()) {
-        locationByIdMap[location.id()] = &location;
-    }
-
-    // Every string, for which the views in this map are stored, outlives the map:
-    // * some strings are static/constexpr
-    // * some strings belong to the profile
-    // * some strings belong to the TServicePerfTopAggregator (i.e. symbolization cache)
-    absl::flat_hash_map<ui64, TSmallVector<TStringViewConvertibleToString>> symbolizedLocationsById;
-    symbolizedLocationsById.reserve(profile.locationSize());
-
-    for (const auto& location : profile.Getlocation()) {
-        const auto locationId = location.id();
-
-        if (symbolizedLocationsById.count(locationId) != 0) {
-            continue;
-        }
-
-        auto& symbolized = symbolizedLocationsById.try_emplace(locationId).first->second;
-        if (location.lineSize() > 0) {
-            // already symbolized, probably kernel function
-            for (const auto& line : location.Getline()) {
-                const auto functionId = line.function_id();
-                if (functionId == 0) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
-                    continue;
-                }
-                const auto& function = *functionByIdMap.at(functionId);
-                symbolized.emplace_back(
-                    profile.string_table(function.name()),
-                    TLifetimeSoundnessReason{"profile outlives everything in this function"}
-                );
-            }
-        } else {
-            [&symbolized, &location, &mappingByIdMap, &profile, this]() {
-                const auto mappingId = location.mapping_id();
-                if (mappingId == 0) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
-                    return;
-                }
-                const auto& mapping = *mappingByIdMap.at(mappingId);
-
-                if (mapping.build_id() == 0) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
-                    return;
-                }
-                const auto& buildId = profile.string_table(mapping.build_id());
-
-                auto symbolizerIt = Symbolizers_.find(buildId);
-                if (symbolizerIt == Symbolizers_.end()) {
-                    symbolized.emplace_back(kNoGSYMLocation, TLifetimeSoundnessReason{"kNoGSYMLocation is static"});
-                    return;
-                }
-                auto& symbolizer = symbolizerIt->second;
-
-                const auto address = location.address() + mapping.file_offset() - mapping.memory_start();
-                const auto& symbolizationResult = symbolizer.Symbolize(address);
-
-                if (symbolizationResult.empty()) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
-                    return;
-                }
-
-                for (const auto& frame : symbolizationResult) {
-                    symbolized.emplace_back(
-                        frame,
-                        TLifetimeSoundnessReason{"symbolizationResult is cached in symbolizer, thus its lifetime is tied to the aggregator"}
-                    );
-                }
-            }();
-        }
-    }
-
-    absl::flat_hash_map<ui64, ui64> cumulativeCyclesCountByLocationId;
-    cumulativeCyclesCountByLocationId.reserve(profile.locationSize());
-
-    TString serviceStr{service.data(), service.size()};
+    std::vector<ui64> lastSampleIdxForFunction;
+    ui64 currentSampleIdx = 0;
+    lastSampleIdxForFunction.assign(allFunctions.size(), currentSampleIdx);
 
     for (const auto& sample : profile.Getsample()) {
+        ++currentSampleIdx;
+
         const auto value = GetCpuCyclesValue(profile, sample);
-
-        // TODO : PERFORATOR-856, count every unique location only once here,
-        // otherwise recursive functions and "UNKNOWN" functions get the wrong count.
-        // Note that "UNKNOWN" functions are harder to distinguish, as different locations might
-        // be UNKNOWN. So not just unique location, but rather unique function/its inlined callchain.
-        for (const auto& locationId : sample.Getlocation_id()) {
-            cumulativeCyclesCountByLocationId[locationId] += value;
-        }
-
         TotalCycles_ += value;
+
+        {
+            // We must only account every unique function once here, otherwise
+            // recursive and/or UNKNOWN functions get wrong cumulative values:
+            // imagine a stack "A -> A -> B" with 5 cycles spent in it,
+            // if we increment every function present by 5, we will get 10 for A,
+            // which is obviously wrong.
+            //
+            // We implement the "unique functions in a sample" by keeping track
+            // for each function when it was last encountered, this way we can avoid
+            // sorting/hashing functionIds within the sample, which is noticeably faster.
+            for (const auto& locationId : sample.Getlocation_id()) {
+                const auto it = framesByLocationId.find(locationId);
+                if (it == framesByLocationId.end()) {
+                    continue;
+                }
+                for (const auto functionId : it->second) {
+                    if (lastSampleIdxForFunction[functionId] != currentSampleIdx) {
+                        cumulativeCyclesCountByFunctionId[functionId] += value;
+                        lastSampleIdxForFunction[functionId] = currentSampleIdx;
+                    }
+                }
+            }
+        }
 
         if (sample.location_idSize() == 0) {
             continue;
         }
 
-        const auto leafLocationId = sample.location_id(0);
-        const auto& frame = symbolizedLocationsById[leafLocationId];
-        if (frame.empty()) {
+        const auto leafFrameIt = framesByLocationId.find(sample.location_id(0));
+        if (leafFrameIt == framesByLocationId.end()) {
             continue;
         }
-        CyclesByFunction_.try_emplace<TStringViewConvertibleToString>(frame.back(), 0).first->second.SelfCycles += value;
+        const auto& leafFrame = leafFrameIt->second;
+
+        if (!leafFrame.empty()) {
+            CyclesByFunction_.try_emplace<TStringViewConvertibleToString>(
+                TStringViewConvertibleToString{
+                    allFunctions[leafFrame.back()],
+                    TLifetimeSoundnessReason{"string_view-s in allFunctions are valid by construction, see SymbolizeProfile implementation"}
+                },
+                0
+            ).first->second.SelfCycles += value;
+        }
     }
 
-    for (const auto& [id, frames] : symbolizedLocationsById) {
-        const auto value = cumulativeCyclesCountByLocationId[id];
-
-        for (const auto& frame : frames) {
-            CyclesByFunction_.try_emplace<TStringViewConvertibleToString>(frame, 0).first->second.CumulativeCycles += value;
+    for (std::size_t i = 0; i < cumulativeCyclesCountByFunctionId.size(); ++i) {
+        const auto value = cumulativeCyclesCountByFunctionId[i];
+        if (value != 0) {
+            CyclesByFunction_.try_emplace<TStringViewConvertibleToString>(
+                TStringViewConvertibleToString{
+                    allFunctions[i],
+                    TLifetimeSoundnessReason{"string_view-s in allFunctions are valid by construction, see SymbolizeProfile implementation"}
+                },
+                0
+            ).first->second.CumulativeCycles += value;
         }
     }
 
