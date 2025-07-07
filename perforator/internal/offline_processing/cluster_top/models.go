@@ -22,7 +22,7 @@ type ServiceProcessingHandler interface {
 }
 
 type ServiceSelector interface {
-	SelectService(ctx context.Context) (ServiceProcessingHandler, error)
+	SelectService(ctx context.Context, heavy bool) (ServiceProcessingHandler, error)
 }
 
 type Function struct {

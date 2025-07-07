@@ -22,6 +22,12 @@ public:
 
     const std::vector<std::string>& Symbolize(ui64 addr);
 
+    void PruneCaches();
+
+    std::size_t GetCacheSize() const {
+        return SymbolizationCache_.size();
+    }
+
 private:
     NPerforator::NGsym::TSymbolizer Symbolizer_;
 
@@ -52,11 +58,18 @@ public:
     PerfTop ExtractEntries();
 
 private:
+    void MaybePruneCaches();
+
     absl::flat_hash_map<TString, TCachingGSYMSymbolizer> Symbolizers_;
 
-    absl::flat_hash_map<TString, ui128, THash<TString>, TEqualTo<TString>> CumulativeCycles_;
-    absl::flat_hash_map<TString, ui128, THash<TString>, TEqualTo<TString>> SelfCycles_;
+    struct TFunctionStats final {
+        ui128 SelfCycles = 0;
+        ui128 CumulativeCycles = 0;
+    };
+    absl::flat_hash_map<TString, TFunctionStats, THash<TString>, TEqualTo<TString>> CyclesByFunction_;
     ui128 TotalCycles_{0};
+
+    ui64 TotalProfiles_{0};
 };
 
 }

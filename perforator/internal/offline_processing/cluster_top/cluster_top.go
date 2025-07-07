@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -116,13 +117,15 @@ func buildSelector(serviceName string, timeRange TimeRange) (*querylang.Selector
 	return selector, nil
 }
 
-const kDegreeOfParallelism int = 4
-const kProfilesBatchSize int = 200
+const kDefaultProfilesBatchSize int = 200
+const kHeavyProfilesBatchSize int = 50
 
 func (t *ClusterTop) Run(
 	ctx context.Context,
 	serviceSelector ServiceSelector,
 	clusterPerfTopAggregator ClusterPerfTopAggregator,
+	heavy bool,
+	degreeOfParallelism uint,
 ) error {
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -137,10 +140,24 @@ func (t *ClusterTop) Run(
 	g.Go(func() error {
 		aggregateG, ctx := errgroup.WithContext(ctx)
 
-		for range kDegreeOfParallelism {
+		servicesDegreeOfParallelism := int(degreeOfParallelism)
+		profilesDegreeOfParallelism := 1
+		if heavy {
+			servicesDegreeOfParallelism = 1
+			profilesDegreeOfParallelism = int(degreeOfParallelism)
+		}
+
+		for range servicesDegreeOfParallelism {
 			aggregateG.Go(func() error {
 				for {
-					if !t.selectAndProcessService(ctx, serviceSelector, clusterPerfTopAggregator) {
+					shouldContinueRightAway := t.selectAndProcessService(
+						ctx,
+						serviceSelector,
+						clusterPerfTopAggregator,
+						heavy,
+						profilesDegreeOfParallelism,
+					)
+					if !shouldContinueRightAway {
 						if ctx.Err() != nil {
 							break
 						}
@@ -168,8 +185,10 @@ func (t *ClusterTop) selectAndProcessService(
 	ctx context.Context,
 	serviceSelector ServiceSelector,
 	clusterPerfTopAggregator ClusterPerfTopAggregator,
+	heavy bool,
+	degreeOfParallelism int,
 ) bool {
-	serviceHandler, err := serviceSelector.SelectService(ctx)
+	serviceHandler, err := serviceSelector.SelectService(ctx, heavy)
 	if err != nil {
 		t.l.Warn(ctx, "Failed to select a service", log.Error(err))
 		return false
@@ -178,12 +197,19 @@ func (t *ClusterTop) selectAndProcessService(
 		serviceHandler.Finalize(ctx, err)
 	}()
 
+	profilesBatchSize := kDefaultProfilesBatchSize
+	if heavy {
+		profilesBatchSize = kHeavyProfilesBatchSize
+	}
+
 	err = t.processService(
 		ctx,
 		clusterPerfTopAggregator,
 		serviceHandler.GetGeneration(),
 		serviceHandler.GetServiceName(),
 		serviceHandler.GetTimeRange(),
+		degreeOfParallelism,
+		profilesBatchSize,
 	)
 	if err != nil {
 		t.l.Error(
@@ -203,32 +229,22 @@ func (t *ClusterTop) processService(
 	generation int,
 	serviceName string,
 	timeRange TimeRange,
+	degreeOfParallelism int,
+	profilesBatchSize int,
 ) error {
-	aggregator, err := t.symbolizer.NewServicePerfTopAggregator(serviceName)
-	if err != nil {
-		return err
-	}
-	defer aggregator.Destroy()
-
 	selector, err := buildSelector(serviceName, timeRange)
 	if err != nil {
 		return err
 	}
 
-	profilesQuery := &meta.ProfileQuery{
+	profileMetas, err := t.profileStorage.SelectProfiles(ctx, &meta.ProfileQuery{
 		Selector: selector,
-	}
-
-	profileMetas, err := t.profileStorage.SelectProfiles(ctx, profilesQuery)
+	})
 	if err != nil {
 		return err
 	}
 
 	buildIDs := getBuildIDsFromProfiles(profileMetas)
-
-	if err := aggregator.InitializeSymbolizers(ctx, buildIDs); err != nil {
-		return err
-	}
 
 	t.l.Info(
 		ctx,
@@ -237,25 +253,16 @@ func (t *ClusterTop) processService(
 		log.Int("profilesCount", len(profileMetas)),
 	)
 
-	for i := 0; i < len(profileMetas); i += kProfilesBatchSize {
-		metaBatch := profileMetas[i:min(i+kProfilesBatchSize, len(profileMetas))]
-		batch, err := t.fetchProfiles(ctx, metaBatch)
-
-		if err != nil {
-			return err
-		}
-
-		t.l.Info(
-			ctx,
-			"Got a batch of profiles to process",
-			log.String("service", serviceName),
-			log.Int("batchSize", len(batch)),
-		)
-
-		err = aggregator.AddProfiles(ctx, batch)
-		if err != nil {
-			return err
-		}
+	functions, err := t.processServiceProfiles(
+		ctx,
+		serviceName,
+		profileMetas,
+		buildIDs,
+		degreeOfParallelism,
+		profilesBatchSize,
+	)
+	if err != nil {
+		return err
 	}
 
 	t.l.Info(
@@ -264,13 +271,90 @@ func (t *ClusterTop) processService(
 		log.String("service", serviceName),
 	)
 
-	functions := aggregator.Extract()
-
 	return clusterPerfTopAggregator.Save(ctx, &ServicePerfTop{
 		Generation:  generation,
 		ServiceName: serviceName,
 		Functions:   functions,
 	})
+}
+
+func (t *ClusterTop) processServiceProfiles(
+	ctx context.Context,
+	serviceName string,
+	profileMetas []*meta.ProfileMetadata,
+	buildIDs []string,
+	degreeOfParallelism int,
+	profilesBatchSize int,
+) ([]Function, error) {
+	metaBatchesChan := make(
+		chan []*meta.ProfileMetadata,
+		// round up to make all the batches fit
+		(len(profileMetas)+profilesBatchSize-1)/profilesBatchSize,
+	)
+	for i := 0; i < len(profileMetas); i += profilesBatchSize {
+		metaBatchesChan <- profileMetas[i:min(i+profilesBatchSize, len(profileMetas))]
+	}
+	close(metaBatchesChan)
+
+	aggregators := make([]*ServicePerfTopAggregator, degreeOfParallelism)
+	defer func() {
+		for _, aggregator := range aggregators {
+			if aggregator != nil {
+				aggregator.Destroy()
+			}
+		}
+	}()
+
+	gsyms, err := t.symbolizer.DownloadAllGSYMs(ctx, buildIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	processedProfiles := atomic.Int64{}
+
+	g, ctx := errgroup.WithContext(ctx)
+	for i := range degreeOfParallelism {
+		g.Go(func() error {
+			aggregator, err := t.symbolizer.NewServicePerfTopAggregator(serviceName)
+			if err != nil {
+				return err
+			}
+			aggregators[i] = aggregator
+
+			aggregator.InitializeSymbolizersWithGSYMs(gsyms, buildIDs)
+
+			for metaBatch := range metaBatchesChan {
+				batch, err := t.fetchProfiles(ctx, metaBatch)
+				if err != nil {
+					return err
+				}
+
+				t.l.Info(
+					ctx,
+					"Got a batch of profiles to process",
+					log.String("service", serviceName),
+					log.Int("batchSize", len(batch)),
+					log.Int("alreadyProcessedPct", int(processedProfiles.Load()*100/int64(len(profileMetas)))),
+				)
+
+				err = aggregator.AddProfiles(ctx, batch)
+				if err != nil {
+					return err
+				}
+				processedProfiles.Add(int64(len(batch)))
+			}
+
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	for i := 1; i < len(aggregators); i += 1 {
+		aggregators[0].MergeWith(aggregators[i])
+	}
+	return aggregators[0].Extract(), nil
 }
 
 func (t *ClusterTop) fetchProfiles(

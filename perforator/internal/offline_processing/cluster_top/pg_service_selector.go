@@ -35,7 +35,12 @@ type PgServiceProcessingHandler struct {
 	tx *sqlx.Tx
 }
 
-func newPgServiceProcessingHandler(service string, generation int, timeRange TimeRange, tx *sqlx.Tx) *PgServiceProcessingHandler {
+func newPgServiceProcessingHandler(
+	service string,
+	generation int,
+	timeRange TimeRange,
+	tx *sqlx.Tx,
+) *PgServiceProcessingHandler {
 	return &PgServiceProcessingHandler{
 		serviceName: service,
 		generation:  generation,
@@ -67,10 +72,11 @@ func (h *PgServiceProcessingHandler) Finalize(ctx context.Context, processingErr
 		SET
 			status=$2
 		WHERE
-			service=$1
+			service=$1 AND generation=$3
 		`,
 		h.GetServiceName(),
 		newStatus,
+		h.GetGeneration(),
 	)
 	if finalizationErr == nil {
 		_ = h.tx.Commit()
@@ -89,7 +95,7 @@ func NewPgServiceSelector(cluster *hasql.Cluster) *PgServiceSelector {
 	}
 }
 
-func (s *PgServiceSelector) SelectService(ctx context.Context) (ServiceProcessingHandler, error) {
+func (s *PgServiceSelector) SelectService(ctx context.Context, heavy bool) (ServiceProcessingHandler, error) {
 	primary, err := s.cluster.WaitForPrimary(ctx)
 	if err != nil {
 		return nil, err
@@ -114,10 +120,11 @@ func (s *PgServiceSelector) SelectService(ctx context.Context) (ServiceProcessin
 			generation
 		FROM cluster_top_services
 		WHERE
-			status='ready'
+			status='ready' AND heavy=$1
 		ORDER BY profiles_count DESC LIMIT 1
 		FOR UPDATE SKIP LOCKED
 		`,
+		heavy,
 	)
 	if err != nil {
 		return nil, err

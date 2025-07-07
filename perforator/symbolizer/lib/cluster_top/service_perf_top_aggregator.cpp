@@ -24,6 +24,8 @@ constexpr std::string_view kCPUCyclesUnit = "cycles";
 constexpr std::string_view kUnknownLocation = "<UNKNOWN>";
 constexpr std::string_view kNoGSYMLocation = "<UNKNOWN (No GSYM)>";
 
+constexpr std::size_t kMaxSymbolizationCacheTotalSize = 256 * 1024;
+
 ui64 GetCpuCyclesValue(
     const NPerforator::NProto::NPProf::ProfileLight& profile,
     const NPerforator::NProto::NPProf::SampleLight& sample) {
@@ -88,6 +90,10 @@ const std::vector<std::string>& TCachingGSYMSymbolizer::Symbolize(ui64 addr) {
     return it->second;
 }
 
+void TCachingGSYMSymbolizer::PruneCaches() {
+    SymbolizationCache_.clear();
+}
+
 TServicePerfTopAggregator::TServicePerfTopAggregator() {}
 
 void TServicePerfTopAggregator::InitializeSymbolizer(
@@ -114,6 +120,8 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, TArray
 }
 
 void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const NPerforator::NProto::NPProf::ProfileLight& profile) {
+    MaybePruneCaches();
+
     absl::flat_hash_map<ui64, const NPerforator::NProto::NPProf::Function*> functionByIdMap;
     for (const auto& function : profile.Getfunction()) {
         functionByIdMap[function.id()] = &function;
@@ -225,33 +233,42 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, const 
         if (frame.empty()) {
             continue;
         }
-        SelfCycles_.try_emplace<TStringViewConvertibleToString>(frame.back(), 0).first->second += value;
+        CyclesByFunction_.try_emplace<TStringViewConvertibleToString>(frame.back(), 0).first->second.SelfCycles += value;
     }
 
     for (const auto& [id, frames] : symbolizedLocationsById) {
         const auto value = cumulativeCyclesCountByLocationId[id];
 
         for (const auto& frame : frames) {
-            CumulativeCycles_.try_emplace<TStringViewConvertibleToString>(frame, 0).first->second += value;
+            CyclesByFunction_.try_emplace<TStringViewConvertibleToString>(frame, 0).first->second.CumulativeCycles += value;
         }
     }
+
+    ++TotalProfiles_;
 }
 
 void TServicePerfTopAggregator::MergeAggregator(const TServicePerfTopAggregator& other) {
-    for (const auto& [k, v] : other.CumulativeCycles_) {
-        CumulativeCycles_[k] += v;
-    }
-
-    for (const auto& [k, v] : other.SelfCycles_) {
-        SelfCycles_[k] += v;
+    for (const auto& [k, v] : other.CyclesByFunction_) {
+        auto& cyclesCount = CyclesByFunction_[k];
+        cyclesCount.SelfCycles += v.SelfCycles;
+        cyclesCount.CumulativeCycles += v.CumulativeCycles;
     }
 
     TotalCycles_ += other.TotalCycles_;
+    TotalProfiles_ += other.TotalProfiles_;
 }
 
 TServicePerfTopAggregator::PerfTop TServicePerfTopAggregator::ExtractEntries() {
-    const auto sortAndDemangle = [](const auto& cyclesByFunction) {
-        std::vector<std::pair<TString, ui128>> total{cyclesByFunction.begin(), cyclesByFunction.end()};
+    const auto sortAndDemangle = [this](const auto& valueSelector) {
+        std::vector<std::pair<TString, ui128>> total;
+        total.reserve(CyclesByFunction_.size());
+        for (const auto& [k, v] : CyclesByFunction_) {
+            total.emplace_back(
+                std::piecewise_construct,
+                std::forward_as_tuple(k),
+                std::forward_as_tuple(valueSelector(v))
+            );
+        }
         std::sort(total.begin(), total.end(), [](const auto& lhs, const auto& rhs) {
             return lhs.second > rhs.second;
         });
@@ -269,8 +286,8 @@ TServicePerfTopAggregator::PerfTop TServicePerfTopAggregator::ExtractEntries() {
         return total;
     };
 
-    auto selfCycles = sortAndDemangle(SelfCycles_);
-    auto cumulativeCycles = sortAndDemangle(CumulativeCycles_);
+    auto selfCycles = sortAndDemangle([](const auto& cyclesCount) { return cyclesCount.SelfCycles; });
+    auto cumulativeCycles = sortAndDemangle([](const auto& cyclesCount) { return cyclesCount.CumulativeCycles; });
 
     struct CyclesCount final {
         ui128 SelfCycles = 0;
@@ -298,6 +315,21 @@ TServicePerfTopAggregator::PerfTop TServicePerfTopAggregator::ExtractEntries() {
         .Functions = std::move(functions),
         .TotalCycles = TotalCycles_
     };
+}
+
+void TServicePerfTopAggregator::MaybePruneCaches() {
+    if (TotalProfiles_ % 100 == 0) {
+        std::size_t totalSymbolizationCacheSize = 0;
+        for (const auto& [_, symbolizer]: Symbolizers_) {
+            totalSymbolizationCacheSize += symbolizer.GetCacheSize();
+        }
+
+        if (totalSymbolizationCacheSize > kMaxSymbolizationCacheTotalSize) {
+            for (auto& [_, symbolizer] : Symbolizers_) {
+                symbolizer.PruneCaches();
+            }
+        }
+    }
 }
 
 }

@@ -38,8 +38,10 @@ func createStorageBundle(
 }
 
 var (
-	clusterTopConfigPath  string
-	clusterTopLogLevelStr string
+	clusterTopConfigPath          string
+	clusterTopLogLevelStr         string
+	clusterTopIsHeavy             bool
+	clusterTopDegreeOfParallelism *uint
 
 	clusterTopCommand = &cobra.Command{
 		Use:   "cluster-top",
@@ -87,8 +89,13 @@ var (
 
 			clusterPerfTopAggregator := cluster_top.NewClickhousePerfTopAggregator(storageBundle.DBs.ClickhouseConn)
 
-			return clusterTop.Run(ctx, serviceSelector, clusterPerfTopAggregator)
-
+			return clusterTop.Run(
+				ctx,
+				serviceSelector,
+				clusterPerfTopAggregator,
+				clusterTopIsHeavy,
+				*clusterTopDegreeOfParallelism,
+			)
 		},
 	}
 )
@@ -108,6 +115,20 @@ func init() {
 		"log-level",
 		"info",
 		"Logging level - ('info') {'debug', 'info', 'warn', 'error'}",
+	)
+
+	clusterTopDegreeOfParallelism = clusterTopCommand.Flags().UintP(
+		"parallelism",
+		"p",
+		4,
+		"Degree of parallelism. Cores available is a good choice",
+	)
+
+	clusterTopCommand.Flags().BoolVar(
+		&clusterTopIsHeavy,
+		"heavy",
+		false,
+		`Whether to parallelise services processing (default), or profiles processing within a service.`,
 	)
 
 	rootCmd.AddCommand(clusterTopCommand)

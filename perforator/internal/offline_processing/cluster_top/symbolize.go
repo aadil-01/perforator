@@ -28,7 +28,7 @@ func NewClusterTopSymbolizer(l xlog.Logger, gsymDownloader *downloader.GSYMDownl
 	}, nil
 }
 
-func (s *ClusterTopSymbolizer) downloadAllGSYMs(
+func (s *ClusterTopSymbolizer) DownloadAllGSYMs(
 	ctx context.Context,
 	buildIDs []string,
 ) (binaries *symbolize.CachedBinariesBatch, err error) {
@@ -60,11 +60,20 @@ func (a *ServicePerfTopAggregator) Destroy() {
 }
 
 func (a *ServicePerfTopAggregator) InitializeSymbolizers(ctx context.Context, buildIDs []string) error {
-	gsyms, err := a.symbolizer.downloadAllGSYMs(ctx, buildIDs)
+	gsyms, err := a.symbolizer.DownloadAllGSYMs(ctx, buildIDs)
 	if err != nil {
 		return err
 	}
 
+	a.InitializeSymbolizersWithGSYMs(gsyms, buildIDs)
+
+	return nil
+}
+
+func (a *ServicePerfTopAggregator) InitializeSymbolizersWithGSYMs(
+	gsyms *symbolize.CachedBinariesBatch,
+	buildIDs []string,
+) {
 	a.gsyms = gsyms
 
 	for _, buildID := range buildIDs {
@@ -83,8 +92,6 @@ func (a *ServicePerfTopAggregator) InitializeSymbolizers(ctx context.Context, bu
 			)
 		}
 	}
-
-	return nil
 }
 
 func (a *ServicePerfTopAggregator) AddProfiles(
