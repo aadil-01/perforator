@@ -21,7 +21,7 @@ static ALWAYS_INLINE bool php_retrieve_configs(
 
     state->config = *config;
     if (config->executor_globals_elf_vaddr != 0) {
-        state->executor_globals_mem_vaddr = proc_info->php_binary.start_address + config->executor_globals_elf_vaddr;
+        state->executor_globals_mem_vaddr = proc_info->php_binary.base_address + config->executor_globals_elf_vaddr;
     }
 
     return true;

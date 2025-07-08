@@ -612,8 +612,8 @@ func (a *processAnalyzer) registerMapping(m *dso.Mapping) {
 
 func mappedBinaryFromMapping(mapping *dso.Mapping) unwinder.MappedBinary {
 	return unwinder.MappedBinary{
-		Id:           unwinder.BinaryId(mapping.DSO.ID),
-		StartAddress: mapping.BaseAddress,
+		Id:          unwinder.BinaryId(mapping.DSO.ID),
+		BaseAddress: mapping.BaseAddress,
 	}
 }
 
@@ -634,6 +634,18 @@ func (a *processAnalyzer) fillMappedBinaryInfo(pi *unwinder.ProcessInfo, mapping
 	}
 }
 
+func newProcessInfo() *unwinder.ProcessInfo {
+	return &unwinder.ProcessInfo{
+		UnwindType:   unwinder.UnwindTypeDwarf,
+		MainBinaryId: unwinder.BinaryId(math.MaxUint64),
+		PhpBinary:    unwinder.MappedBinary{BaseAddress: math.MaxUint64},
+		PythonBinary: unwinder.MappedBinary{BaseAddress: math.MaxUint64},
+		PthreadBinary: unwinder.MappedBinary{
+			BaseAddress: math.MaxUint64,
+		},
+	}
+}
+
 func (a *processAnalyzer) storeBPFMaps(ctx context.Context) error {
 	sort.Slice(a.exemappings, func(i, j int) bool {
 		return a.exemappings[i].Begin < a.exemappings[j].Begin
@@ -641,18 +653,14 @@ func (a *processAnalyzer) storeBPFMaps(ctx context.Context) error {
 
 	a.syncMaps(ctx)
 
-	pi := unwinder.ProcessInfo{
-		UnwindType: unwinder.UnwindTypeDwarf,
-	}
+	pi := newProcessInfo()
 	if len(a.exemappings) > 0 && a.exemappings[0].DSO != nil {
 		pi.MainBinaryId = unwinder.BinaryId(a.exemappings[0].DSO.ID)
-	} else {
-		pi.MainBinaryId = unwinder.BinaryId(math.MaxUint64)
 	}
-	a.fillMappedBinaryInfo(&pi, a.exemappings)
+	a.fillMappedBinaryInfo(pi, a.exemappings)
 
 	a.log.Debug(ctx, "Put process info", log.Any("info", pi))
-	err := a.reg.bpf.AddProcess(a.proc.id, &pi)
+	err := a.reg.bpf.AddProcess(a.proc.id, pi)
 	if err != nil {
 		return err
 	}
