@@ -1641,7 +1641,7 @@
     "title": "Jest",
     "description": "Раннер модульных (юнит) тестов для JS/TS.\n\nИспользуется под капотом команды `ya tool nots test`.\nТребует заведения в проекте папки с отдельным `ya.make` файлом.\n\n[Подробнее про модульное тестирование в tier-0](https://docs.yandex-team.ru/frontend-in-arcadia/tutorials/tests-unit)",
     "type": "NPM_PACKAGE",
-    "default": "30.0.0",
+    "default": "30.0.2",
     "links": {
       "Home": "https://jestjs.io",
       "Sources": "https://github.com/jestjs/jest",
@@ -1651,6 +1651,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "30.0.2": {
+        "add_date": "2025-07-08T05:30:35",
+        "resources": []
+      },
       "30.0.0": {
         "add_date": "2025-06-24T05:31:15",
         "resources": []
@@ -4622,7 +4626,7 @@
   "playwright": {
     "description": "Раннер для тестов Playwright, позволяет выполнять end-to-end тесты с учётом специфики различных браузеров и устройств",
     "type": "NPM_PACKAGE",
-    "default": "1.53.0",
+    "default": "1.53.1",
     "links": {
       "Home": "https://playwright.dev/",
       "Sources": "https://github.com/microsoft/playwright",
@@ -4632,6 +4636,10 @@
     "specifier": ">=1.41.2",
     "useDirectly": true,
     "versions": {
+      "1.53.1": {
+        "add_date": "2025-07-08T05:39:55",
+        "resources": []
+      },
       "1.53.0": {
         "add_date": "2025-07-01T05:32:19",
         "resources": []
@@ -5013,7 +5021,7 @@
     "title": "Stylelint",
     "description": "Инструмент для линтинга файлов стилей.\n\nИспользуется в макросе [TS_STYLELINT()](https://docs.yandex-team.ru/frontend-in-arcadia/references/macros#ts-stylelint).",
     "type": "NPM_PACKAGE",
-    "default": "16.20.0",
+    "default": "16.21.0",
     "links": {
       "Home": "https://stylelint.io/",
       "Sources": "https://github.com/stylelint/stylelint",
@@ -5023,6 +5031,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "16.21.0": {
+        "add_date": "2025-07-08T05:40:46",
+        "resources": []
+      },
       "16.20.0": {
         "add_date": "2025-06-17T05:32:02",
         "resources": []
