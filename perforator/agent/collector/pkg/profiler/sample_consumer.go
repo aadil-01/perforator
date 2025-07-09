@@ -297,7 +297,7 @@ func (c *SampleConsumer) processUserSpaceLocation(ctx context.Context, loc *prof
 	}
 	mapping, err := c.p.dsoStorage.ResolveMapping(ctx, linux.ProcessID(c.sample.Pid), ip)
 	if err == nil && mapping != nil {
-		offset := uint64(mapping.Offset)
+		offset := mapping.Offset
 		if mapping.BuildInfo != nil {
 			// This logic is broken for binaries with multiple executable sections (e.g. BOLT-ed binaries),
 			// as the offset seems to always become zero for any but first executable mapping.
