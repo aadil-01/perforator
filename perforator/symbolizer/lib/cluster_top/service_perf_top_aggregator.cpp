@@ -24,6 +24,8 @@ constexpr std::string_view kCPUCyclesUnit = "cycles";
 constexpr std::string_view kUnknownLocation = "<UNKNOWN>";
 constexpr std::string_view kNoGSYMLocation = "<UNKNOWN (No GSYM)>";
 
+constexpr std::string_view kKernelSpecialMapping = "[kernel]";
+
 constexpr std::size_t kMaxSymbolizationCacheTotalSize = 256 * 1024;
 
 ui64 GetCpuCyclesValue(
@@ -70,6 +72,9 @@ struct SymbolizedProfileData final {
     std::vector<std::string_view> AllFunctions;
 
     // Indexes into AllFunctions
+    std::vector<ui64> KernelFunctions;
+
+    // Indexes into AllFunctions
     absl::flat_hash_map<ui64, TSmallVector<ui64>> FramesByLocationId;
 };
 
@@ -94,6 +99,7 @@ SymbolizedProfileData SymbolizeProfile(
 
     SymbolizedProfileData result{};
     auto& allFunctions = result.AllFunctions;
+    auto& kernelFunctions = result.KernelFunctions;
     auto& framesByLocationId = result.FramesByLocationId;
 
     allFunctions.reserve(profile.locationSize() * 2);
@@ -109,7 +115,6 @@ SymbolizedProfileData SymbolizeProfile(
     for (const auto& location : profile.Getlocation()) {
         TSmallVector<TStringViewConvertibleToString> symbolized{};
         if (location.lineSize() > 0) {
-            // already symbolized, probably kernel function
             for (const auto& line : location.Getline()) {
                 const auto functionId = line.function_id();
                 if (functionId == 0) {
@@ -161,14 +166,28 @@ SymbolizedProfileData SymbolizeProfile(
             }();
         }
 
+        const auto isKernelLocation = [&mappingByIdMap, &profile] (ui64 mappingId) {
+            if (mappingId == 0) {
+                return false;
+            }
+
+            const auto& mapping = *mappingByIdMap.at(mappingId);
+            return profile.string_table(mapping.filename()) == kKernelSpecialMapping;
+        }(location.mapping_id());
+
         auto& frames = framesByLocationId[location.id()];
         for (const auto& function : symbolized) {
             const auto [it, inserted] = symbolizedFunctionsMapping.try_emplace(function, allFunctions.size());
             if (inserted) {
                 allFunctions.push_back(function);
             }
+            const auto functionIdx = it->second;
 
-            frames.push_back(it->second);
+            frames.push_back(functionIdx);
+
+            if (isKernelLocation) {
+                kernelFunctions.push_back(functionIdx);
+            }
         }
     }
 
@@ -230,6 +249,7 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char>, const NPerfora
 
     const auto symbolizedProfileData = SymbolizeProfile(Symbolizers_, profile);
     const auto& allFunctions = symbolizedProfileData.AllFunctions;
+    const auto& kernelFunctions = symbolizedProfileData.KernelFunctions;
     const auto& framesByLocationId = symbolizedProfileData.FramesByLocationId;
 
     std::vector<ui128> cumulativeCyclesCountByFunctionId;
@@ -303,6 +323,13 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char>, const NPerfora
         }
     }
 
+    for (const auto kernelFunctionIdx : kernelFunctions) {
+        KernelFunctions_.emplace<TStringViewConvertibleToString>(TStringViewConvertibleToString{
+            allFunctions[kernelFunctionIdx],
+            TLifetimeSoundnessReason{"string_view-s in allFunctions are valid by construction, see SymbolizeProfile implementation"}
+        });
+    }
+
     ++TotalProfiles_;
 }
 
@@ -337,9 +364,14 @@ TServicePerfTopAggregator::PerfTop TServicePerfTopAggregator::ExtractEntries() {
         }
 
         for (auto& [name, _] : total) {
+            const auto isKernelFunction = KernelFunctions_.contains(name);
             name = NPerforator::NSymbolize::CleanupFunctionName(
                 NPerforator::NSymbolize::DemangleFunctionName(name)
             );
+
+            if (isKernelFunction) {
+                name = "[kernel] " + name;
+            }
         }
 
         return total;

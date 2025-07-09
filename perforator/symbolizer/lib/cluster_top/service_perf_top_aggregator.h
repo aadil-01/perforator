@@ -1,6 +1,7 @@
 #pragma once
 
 #include <library/cpp/containers/absl_flat_hash/flat_hash_map.h>
+#include <library/cpp/containers/absl_flat_hash/flat_hash_set.h>
 #include <library/cpp/int128/int128.h>
 
 #include <perforator/symbolizer/lib/gsym/gsym_symbolizer.h>
@@ -61,6 +62,8 @@ private:
     void MaybePruneCaches();
 
     absl::flat_hash_map<TString, TCachingGSYMSymbolizer> Symbolizers_;
+
+    absl::flat_hash_set<TString, THash<TString>, TEqualTo<TString>> KernelFunctions_;
 
     struct TFunctionStats final {
         ui128 SelfCycles = 0;
