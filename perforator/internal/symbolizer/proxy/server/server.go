@@ -1373,6 +1373,9 @@ func (s *PerforatorServer) downloadProfiles(
 	var droppedProfilesCount atomic.Uint64
 
 	g, ctx := errgroup.WithContext(ctx)
+	// limit downloads concurrency to a somewhat sane value
+	g.SetLimit(256)
+
 	for i := range profiles {
 		g.Go(func() error {
 			if totalSizeSoftLimit != nil && downloadedSizeApprox.Load() >= *totalSizeSoftLimit {
