@@ -20,8 +20,10 @@ constexpr std::size_t kMaxEntriesToPrint = 10'000;
 constexpr std::string_view kCPUCyclesType = "cpu";
 constexpr std::string_view kCPUCyclesUnit = "cycles";
 
-// TODO : PERFORATOR-886
-constexpr std::string_view kUnknownLocation = "<UNKNOWN>";
+constexpr std::string_view kUnknownFunction = "<UNKNOWN (No function)>";
+constexpr std::string_view kUnknownMapping = "<UNKNOWN (No mapping)>";
+constexpr std::string_view kUnknownBuildId = "<UNKNOWN (No buildId)>";
+constexpr std::string_view kUnknownNoFrames = "<UNKNOWN (No frames)>";
 constexpr std::string_view kNoGSYMLocation = "<UNKNOWN (No GSYM)>";
 
 constexpr std::string_view kKernelSpecialMapping = "[kernel]";
@@ -118,7 +120,7 @@ SymbolizedProfileData SymbolizeProfile(
             for (const auto& line : location.Getline()) {
                 const auto functionId = line.function_id();
                 if (functionId == 0) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    symbolized.emplace_back(kUnknownFunction, TLifetimeSoundnessReason{"kUnknownFunction is static"});
                     continue;
                 }
                 const auto& function = *functionByIdMap.at(functionId);
@@ -131,13 +133,13 @@ SymbolizedProfileData SymbolizeProfile(
             [&symbolized, &location, &mappingByIdMap, &profile, &symbolizers]() {
                 const auto mappingId = location.mapping_id();
                 if (mappingId == 0) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    symbolized.emplace_back(kUnknownMapping, TLifetimeSoundnessReason{"kUnknownMapping is static"});
                     return;
                 }
                 const auto& mapping = *mappingByIdMap.at(mappingId);
 
                 if (mapping.build_id() == 0) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    symbolized.emplace_back(kUnknownBuildId, TLifetimeSoundnessReason{"kUnknownBuildId is static"});
                     return;
                 }
                 const auto& buildId = profile.string_table(mapping.build_id());
@@ -153,7 +155,7 @@ SymbolizedProfileData SymbolizeProfile(
                 const auto& symbolizationResult = symbolizer.Symbolize(address);
 
                 if (symbolizationResult.empty()) {
-                    symbolized.emplace_back(kUnknownLocation, TLifetimeSoundnessReason{"kUnknownLocation is static"});
+                    symbolized.emplace_back(kUnknownNoFrames, TLifetimeSoundnessReason{"kUnknownNoFrames is static"});
                     return;
                 }
 
