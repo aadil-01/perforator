@@ -1,14 +1,17 @@
 #include "symbolizer.h"
 
-#include <library/cpp/logger/global/global.h>
-
 #include <perforator/lib/llvmex/llvm_elf.h>
 #include <perforator/lib/llvmex/llvm_exception.h>
+#include <perforator/lib/rustc_demangle/demangle.h>
 
+#include <library/cpp/logger/global/global.h>
+#include <library/cpp/iterator/enumerate.h>
+
+#include <util/charset/wide.h>
 #include <util/generic/algorithm.h>
+#include <util/generic/deque.h>
 #include <util/generic/hash.h>
 #include <util/generic/vector.h>
-#include <util/generic/deque.h>
 #include <util/stream/format.h>
 
 #include <llvm/Object/ELF.h>
@@ -80,10 +83,12 @@ ui64 CalcOffsetForModule(TStringBuf moduleName) {
     return getFirstPhdrVirtualAddress(binary->getBinary()).GetOrElse(0);
 }
 
-}
+} // anonymous namespace
 
 std::string DemangleFunctionName(const std::string& name) {
-    return llvm::symbolize::LLVMSymbolizer::DemangleName(name, nullptr);
+    auto demangled = llvm::symbolize::LLVMSymbolizer::DemangleName(name, nullptr);
+    demangled = NDemangle::MaybeDemangleRustcName(std::move(demangled));
+    return demangled;
 }
 
 std::string CleanupFunctionName(std::string&& name) {
