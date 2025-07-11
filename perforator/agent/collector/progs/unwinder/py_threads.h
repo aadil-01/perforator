@@ -126,7 +126,7 @@ static ALWAYS_INLINE void* python_get_current_thread_state_from_cache(struct pyt
         // Also tcb_head_t is a header of struct pthread.
         state->thread_key.thread_id = get_tcb_pointer();
     } else {
-        state->thread_key.thread_id = get_current_task_innermost_pid();
+        state->thread_key.thread_id = get_current_task_innermost_tid();
     }
 
     return python_get_py_thread_state_from_cache(&state->thread_key);

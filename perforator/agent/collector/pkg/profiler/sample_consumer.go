@@ -430,6 +430,7 @@ func (c *SampleConsumer) initBuilderCommon(name string, sampleTypes []profile.Sa
 	builder := c.initBuilderMinimal(name, sampleTypes).
 		AddIntLabel("pid", int64(c.sample.Pid), "pid").
 		AddIntLabel("tid", int64(c.sample.Tid), "tid").
+		AddIntLabel("innermost_pidns_tid", int64(c.sample.InnermostPidnsTid), "innermost_pidns_tid").
 		AddStringLabel("comm", copy.ZeroTerminatedString(c.sample.ThreadComm[:])).
 		AddStringLabel("process_comm", copy.ZeroTerminatedString(c.sample.ProcessComm[:])).
 		AddStringLabel("thread_comm", copy.ZeroTerminatedString(c.sample.ThreadComm[:])).
@@ -587,6 +588,7 @@ func (c *SampleConsumer) logSample(err error) {
 		log.String("proccomm", copy.ZeroTerminatedString(c.sample.ProcessComm[:])),
 		log.UInt32("pid", c.sample.Pid),
 		log.UInt32("tid", c.sample.Tid),
+		log.UInt32("innermost_pidns_tid", c.sample.InnermostPidnsTid),
 		log.UInt64("starttime", c.sample.Starttime),
 		log.String("cgroup", c.p.cgroups.CgroupFullName(c.sample.ParentCgroup)),
 		log.String("workload", c.cgroupRel),

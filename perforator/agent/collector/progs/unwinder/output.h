@@ -63,6 +63,7 @@ struct record_sample {
     u8 thread_comm[TASK_COMM_LEN];
     u8 process_comm[TASK_COMM_LEN];
     u32 pid;
+    u32 innermost_pidns_tid;
     u32 tid;
     u64 parent_cgroup;
     // All cgroups starting from innermost and up to (but not including) parent.

@@ -380,6 +380,7 @@ static NOINLINE int profiler_stage_start(void* ctx, struct profiler_state* state
     u64 pid_tgid = get_current_pidns_pid_tgid(config->pidns_inode);
     state->sample.tid = (u32)pid_tgid;
     state->sample.pid = pid_tgid >> 32;
+    state->sample.innermost_pidns_tid = get_current_task_innermost_tid();
     state->sample.starttime = get_current_process_start_time();
     state->sample.kthread = kthread;
 
