@@ -153,7 +153,16 @@ TSmallVector<llvm::DILineInfo> TCodeSymbolizer::SymbolizeGsym(TStringBuf moduleN
         return GSYMSymbolizers_.emplace(moduleName, moduleName).first->second;
     }();
 
-    return symbolizer.Symbolize(addr);
+    auto result = symbolizer.Symbolize(addr);
+    if (result.empty()) {
+        // Mimic the behavior of LLVMSymbolizer: add a default-constructed (i.e. <invalid>) DILineInfo.
+        //
+        // We don't do that in the NGsym::TSymbolizer itself because it doesn't have to/need to match
+        // LLVMSymbolizer's behavior, but here we try to have the behavior unified.
+        result.emplace_back();
+    }
+
+    return result;
 }
 
 void TCodeSymbolizer::PruneCaches() {
