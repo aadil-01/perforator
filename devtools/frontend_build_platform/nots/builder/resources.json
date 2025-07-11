@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-07-04T16:40:09.140Z",
+    "created": "2025-07-11T08:16:37.302Z",
     "pr": {
-      "id": 9219107,
+      "id": 9360064,
       "author": "vturov",
-      "summary": "FBP-1208: Повторить локальные оптимизации для тестов (jest, eslint, typecheck)"
+      "summary": "FBP-2319: nots: do not mix nm_bundle and local_cli flags"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9134381609"
+      "uri": "sbr:9183753619"
     },
     "darwin-arm64": {
-      "uri": "sbr:9134380416"
+      "uri": "sbr:9183751242"
     },
     "linux": {
-      "uri": "sbr:9134384147"
+      "uri": "sbr:9183758519"
     },
     "linux-aarch64": {
-      "uri": "sbr:9134383064"
+      "uri": "sbr:9183755910"
     }
   }
 }
