@@ -1,10 +1,10 @@
 #pragma once
 
-#include "metrics.h"
-#include "pidns.h"
-#include "pthread.h"
-#include "py_types.h"
-#include "thread.h"
+#include "../metrics.h"
+#include "../pidns.h"
+#include "../pthread.h"
+#include "types.h"
+#include "../thread.h"
 
 #include <bpf/bpf.h>
 

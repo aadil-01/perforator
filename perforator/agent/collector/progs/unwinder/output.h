@@ -3,8 +3,9 @@
 #include "cgroups.h"
 #include "thread_local.h"
 #include "lbr.h"
-#include "python.h"
+#include "python/types.h"
 #include "thread_local.h"
+#include "php/types.h"
 
 #include <linux/perf_event.h>
 #include <bpf/bpf.h>
@@ -36,6 +37,11 @@ enum sample_type : u32 {
 
     // Uprobes
     SAMPLE_TYPE_UPROBE,
+};
+
+struct interpreter_stack {
+    struct interpreter_frame frames[PYTHON_MAX_STACK_DEPTH];
+    u8 len;
 };
 
 struct record_sample {
@@ -73,8 +79,9 @@ struct record_sample {
     u64 kernstack[PERF_MAX_STACK_DEPTH];
     u64 userstack[PERF_MAX_STACK_DEPTH];
 
-    u8 python_stack_len;
-    struct python_frame python_stack[PYTHON_MAX_STACK_DEPTH];
+    struct interpreter_stack python_stack;
+
+    struct interpreter_stack php_stack;
 
     struct tls_collect_result tls_values;
 

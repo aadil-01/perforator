@@ -616,13 +616,9 @@ func (b *BPF) DeletePthreadConfig(id unwinder.BinaryId) error {
 }
 
 // TODO: we can use batch lookups into bpf maps
-func (b *BPF) SymbolizePython(key *unwinder.PythonSymbolKey) (res unwinder.PythonSymbol, exists bool) {
-	err := b.maps.PythonSymbols.Lookup(key, &res)
-	if err != nil {
-		return
-	}
-
-	exists = true
+func (b *BPF) SymbolizeInterpeter(key *unwinder.SymbolKey) (res unwinder.Symbol, exists bool) {
+	err := b.maps.InterpreterSymbols.Lookup(key, &res)
+	exists = (err == nil)
 	return
 }
 

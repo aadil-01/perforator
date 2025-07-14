@@ -15,7 +15,6 @@ import (
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/machine/uprobe"
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/profile"
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/storage/client"
-	python_models "github.com/yandex/perforator/perforator/internal/linguist/python/models"
 	"github.com/yandex/perforator/perforator/internal/unwinder"
 	"github.com/yandex/perforator/perforator/pkg/env"
 	"github.com/yandex/perforator/perforator/pkg/linux"
@@ -34,13 +33,18 @@ type SampleConsumer struct {
 	env       []formattedEnvVariable
 	tls       []formattedTLSVariable
 	cgroupRel string
+
+	pythonProcessor *sampleStackProcessor
+	phpProcessor    *sampleStackProcessor
 }
 
 func NewSampleConsumer(p *Profiler, envWhitelist map[string]struct{}, sample *unwinder.RecordSample) *SampleConsumer {
 	return &SampleConsumer{
-		p:            p,
-		sample:       sample,
-		envWhitelist: envWhitelist,
+		p:               p,
+		sample:          sample,
+		envWhitelist:    envWhitelist,
+		pythonProcessor: newPythonSampleStackProcessor(p.pythonSymbolizer),
+		phpProcessor:    newPHPSampleStackProcessor(p.phpSymbolizer),
 	}
 }
 
@@ -335,6 +339,41 @@ func (c *SampleConsumer) collectUserStackInto(ctx context.Context, builder *prof
 	}
 }
 
+func (c *SampleConsumer) collectInterpreterStackInto(
+	langMtr *languageCollectionMetrics,
+	builder *profile.SampleBuilder,
+	stackProcessor *sampleStackProcessor,
+	stack *unwinder.InterpreterStack,
+) {
+	mtr := stackProcessor.Process(builder, stack)
+	c.stacklen += int(mtr.framesCount)
+	langMtr.collectedFrameCount.Add(int64(mtr.framesCount))
+	langMtr.unsymbolizedFrameCount.Add(int64(mtr.unsymbolizedFramesCount))
+}
+
+func (c *SampleConsumer) collectStacksInto(ctx context.Context, builder *profile.SampleBuilder) {
+	if enablePython := c.p.conf.BPF.TracePython; enablePython != nil && *enablePython {
+		c.collectInterpreterStackInto(
+			&c.p.metrics.pythonMetrics,
+			builder,
+			c.pythonProcessor,
+			&c.sample.PythonStack,
+		)
+	}
+
+	if enablePhp := c.p.conf.FeatureFlagsConfig.EnablePHP; enablePhp != nil && *enablePhp {
+		c.collectInterpreterStackInto(
+			&c.p.metrics.phpMetrics,
+			builder,
+			c.phpProcessor,
+			&c.sample.PhpStack,
+		)
+	}
+
+	c.collectKernelStackInto(builder)
+	c.collectUserStackInto(ctx, builder)
+}
+
 func (c *SampleConsumer) collectWallTime(builder *profile.SampleBuilder) {
 	builder.AddValue(int64(c.sample.Timedelta))
 }
@@ -353,54 +392,6 @@ func (c *SampleConsumer) collectSignalInto(builder *profile.SampleBuilder) error
 	builder.AddStringLabel("signal:name", signame)
 
 	return nil
-}
-
-func (c *SampleConsumer) processPythonFrame(loc *profile.LocationBuilder, frame *unwinder.PythonFrame) {
-	if frame.SymbolKey.CoFirstlineno == -1 {
-		loc.AddFrame().
-			SetName(python_models.PythonTrampolineFrame).
-			Finish()
-		return
-	}
-
-	symbol, exists := c.p.pythonSymbolizer.Symbolize(&frame.SymbolKey)
-	if !exists {
-		c.p.metrics.unsymbolizedPythonFrameCount.Inc()
-		loc.AddFrame().
-			SetName(python_models.UnsymbolizedPythonLocation).
-			SetStartLine(int64(frame.SymbolKey.CoFirstlineno)).
-			Finish()
-		return
-	}
-
-	loc.AddFrame().
-		SetName(symbol.Name).
-		SetFilename(symbol.FileName).
-		SetStartLine(int64(frame.SymbolKey.CoFirstlineno)).
-		Finish()
-}
-
-func (c *SampleConsumer) collectPythonStackInto(builder *profile.SampleBuilder) {
-	if enable := c.p.conf.BPF.TracePython; enable == nil || !*enable {
-		return
-	}
-
-	c.p.metrics.collectedPythonFrameCount.Add(int64(c.sample.PythonStackLen))
-
-	for i := 0; i < int(c.sample.PythonStackLen); i++ {
-		frame := &c.sample.PythonStack[i]
-
-		loc := builder.AddPythonLocation(&profile.PythonLocationKey{
-			CodeObjectAddress:     frame.SymbolKey.CodeObject,
-			CodeObjectFirstLineNo: frame.SymbolKey.CoFirstlineno,
-		})
-
-		loc.SetMapping().SetPath(profile.PythonSpecialMapping).Finish()
-		c.processPythonFrame(loc, frame)
-
-		loc.Finish()
-		c.stacklen++
-	}
 }
 
 func (c *SampleConsumer) collectLBRStackInto(ctx context.Context, builder *profile.SampleBuilder) {
@@ -478,9 +469,7 @@ func (c *SampleConsumer) recordCPUSample(ctx context.Context) {
 	builder := c.initBuilderCommon("cpu", sampleTypes)
 
 	c.collectEventCount(builder)
-	c.collectPythonStackInto(builder)
-	c.collectKernelStackInto(builder)
-	c.collectUserStackInto(ctx, builder)
+	c.collectStacksInto(ctx, builder)
 
 	if hasWallTime {
 		c.collectWallTime(builder)
@@ -510,9 +499,7 @@ func (c *SampleConsumer) recordSignalSample(ctx context.Context) error {
 	builder := c.initBuilderCommon("signal", sampleTypes)
 
 	builder.AddValue(1)
-	c.collectPythonStackInto(builder)
-	c.collectKernelStackInto(builder)
-	c.collectUserStackInto(ctx, builder)
+	c.collectStacksInto(ctx, builder)
 
 	if err := c.collectSignalInto(builder); err != nil {
 		return err
@@ -569,9 +556,7 @@ func (c *SampleConsumer) recordUprobeSample(ctx context.Context) {
 	builder := c.initBuilderCommon(sampleTypeKind, sampleTypes)
 
 	builder.AddValue(1)
-	c.collectPythonStackInto(builder)
-	c.collectKernelStackInto(builder)
-	c.collectUserStackInto(ctx, builder)
+	c.collectStacksInto(ctx, builder)
 
 	builder.Finish()
 }

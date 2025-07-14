@@ -8,7 +8,7 @@ import (
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/machine"
 	storage "github.com/yandex/perforator/perforator/agent/collector/pkg/storage/client"
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/storage/upload"
-	"github.com/yandex/perforator/perforator/internal/linguist/python/symbolizer"
+	"github.com/yandex/perforator/perforator/internal/linguist/symbolizer"
 	"github.com/yandex/perforator/perforator/pkg/linux/perfevent"
 	"github.com/yandex/perforator/perforator/pkg/storage/client"
 )
@@ -96,6 +96,7 @@ type PodsDeploySystemConfig struct {
 
 type SymbolizerConfig struct {
 	Python symbolizer.SymbolizerConfig `yaml:"python"`
+	Php    symbolizer.SymbolizerConfig `yaml:"php"`
 }
 
 // FeatureFlagsConfig holds agent-side [feature-flags](https://trunkbaseddevelopment.com/feature-flags/)

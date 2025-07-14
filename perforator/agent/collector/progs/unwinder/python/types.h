@@ -1,6 +1,8 @@
 #pragma once
 
-#include "binary.h"
+#include "../binary.h"
+#include "../interpreter/types.h"
+#include "../pthread.h"
 
 #define PYVERSION(major, minor, micro) \
     (((u32)(major) << 16) | ((u32)(minor) << 8) | ((u32)(micro)))
@@ -34,18 +36,15 @@ struct python_thread_key {
     u32 pid;
 };
 
+struct python_code_object {
+    u64 filename;
+    u64 name;
+};
+
 enum {
     MAX_PYTHON_THREADS = 16384,
     MAX_PYTHON_THREAD_STATE_WALK = 32,
     PYTHON_MAX_STACK_DEPTH = 128,
-
-    // This constant should be a power of 2.
-    PYTHON_SYMBOL_BUFFER_SIZE = 1024,
-
-    // This constant is intentionally PYTHON_SYMBOL_BUFFER_SIZE - 1,
-    // we use it for ending length to satisfy the BPF verifier.
-    PYTHON_STRING_LENGTH_VERIFIER_MASK = (1 << 10) - 1,
-    MAX_PYTHON_SYMBOLS_SIZE = 200000,
     PYTHON_CFRAME_LINENO_ID = -1,
     PYTHON_UNSPECIFIED_OFFSET = -1,
 };
@@ -122,35 +121,6 @@ struct python_config {
     struct python_internals_offsets offsets;
 };
 
-// hope this is enough to avoid collisions
-// code_objects are usually allocated once,
-//   so this should be good enough identifier within the process.
-// Though add co_firstlineno which is quite granular
-struct python_symbol_key {
-    u64 code_object;
-    u32 pid;
-    int co_firstlineno;
-};
-
-struct python_symbol {
-    // Both lengths are in codepoints.
-    u8 name_length;
-    u8 filename_length;
-    u8 codepoint_size; // 1 for ascii, 2 for ucs2, 4 for ucs4
-    // The layout is [name][filename].
-    // We can store expensive ucs4 encoded strings here for legacy CPython.
-    char data[PYTHON_SYMBOL_BUFFER_SIZE];
-};
-
-struct python_code_object {
-    u64 filename;
-    u64 name;
-};
-
-struct python_frame {
-    struct python_symbol_key symbol_key;
-};
-
 struct python_state {
     struct python_thread_key thread_key;
     struct python_config config;
@@ -159,14 +129,13 @@ struct python_state {
     u64 py_runtime_address;
     u64 py_interp_head_address;
     u64 auto_tss_key_address;
-    struct python_frame frames[PYTHON_MAX_STACK_DEPTH];
+    struct interpreter_frame frames[PYTHON_MAX_STACK_DEPTH];
     u32 frame_count;
-    struct python_symbol symbol;
-    struct python_symbol_key symbol_key;
+    struct symbol symbol;
+    struct symbol_key symbol_key;
     struct python_code_object code_object;
     u32 pid;
 };
 
 BPF_MAP(python_thread_id_py_thread_state, BPF_MAP_TYPE_LRU_HASH, struct python_thread_key, void*, MAX_PYTHON_THREADS);
-BPF_MAP(python_symbols, BPF_MAP_TYPE_LRU_HASH, struct python_symbol_key, struct python_symbol, MAX_PYTHON_SYMBOLS_SIZE);
 BPF_MAP(python_storage, BPF_MAP_TYPE_HASH, binary_id, struct python_config, MAX_BINARIES);

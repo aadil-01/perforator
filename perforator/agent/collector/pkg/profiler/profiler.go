@@ -22,7 +22,7 @@ import (
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/perfmap"
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/process"
 	"github.com/yandex/perforator/perforator/agent/collector/pkg/storage/client"
-	"github.com/yandex/perforator/perforator/internal/linguist/python/symbolizer"
+	"github.com/yandex/perforator/perforator/internal/linguist/symbolizer"
 	"github.com/yandex/perforator/perforator/internal/logfield"
 	"github.com/yandex/perforator/perforator/internal/unwinder"
 	"github.com/yandex/perforator/perforator/pkg/graceful"
@@ -64,6 +64,7 @@ type Profiler struct {
 	procs      *process.ProcessRegistry
 
 	pythonSymbolizer *symbolizer.Symbolizer
+	phpSymbolizer    *symbolizer.Symbolizer
 
 	// Profiling targets
 	wholeSystem *multiProfileBuilder
@@ -86,6 +87,11 @@ type Profiler struct {
 	enablePerfMapsJVM bool
 }
 
+type languageCollectionMetrics struct {
+	unsymbolizedFrameCount metrics.Counter
+	collectedFrameCount    metrics.Counter
+}
+
 type profilerMetrics struct {
 	samplesDuration metrics.Counter
 	mappingsHit     metrics.Counter
@@ -99,8 +105,8 @@ type profilerMetrics struct {
 	recordedTLSVarsFromSamples metrics.Counter
 	recordedTLSBytes           metrics.Counter
 
-	unsymbolizedPythonFrameCount metrics.Counter
-	collectedPythonFrameCount    metrics.Counter
+	pythonMetrics languageCollectionMetrics
+	phpMetrics    languageCollectionMetrics
 
 	droppedProfiles metrics.Counter
 }
@@ -268,11 +274,20 @@ func (p *Profiler) initialize(r metrics.Registry) (err error) {
 
 	// Create python symbolizer
 	if enabled := p.conf.BPF.TracePython; enabled == nil || *enabled {
-		p.pythonSymbolizer, err = symbolizer.NewSymbolizer(&p.conf.Symbolizer.Python, p.bpf, r)
+		p.pythonSymbolizer, err = symbolizer.NewPythonSymbolizer(&p.conf.Symbolizer.Python, p.bpf, r)
 		if err != nil {
 			return err
 		}
 	}
+
+	// Create PHP symbolizer
+	if enabled := p.conf.FeatureFlagsConfig.EnablePHP; enabled != nil && *enabled {
+		p.phpSymbolizer, err = symbolizer.NewPhpSymbolizer(&p.conf.Symbolizer.Php, p.bpf, r)
+		if err != nil {
+			return err
+		}
+	}
+
 	p.enablePerfMaps = true
 	p.enablePerfMapsJVM = true
 	if p.conf.EnablePerfMaps != nil {
@@ -422,8 +437,14 @@ func (p *Profiler) registerMetrics(r metrics.Registry) error {
 
 	p.metrics.droppedProfiles = r.WithTags(Labels{"kind": "dropped"}).Counter("profiles.count")
 
-	p.metrics.unsymbolizedPythonFrameCount = r.Counter("python.frame.unsymbolized.count")
-	p.metrics.collectedPythonFrameCount = r.Counter("python.frame.collected.count")
+	p.metrics.pythonMetrics = languageCollectionMetrics{
+		unsymbolizedFrameCount: r.Counter("python.frame.unsymbolized.count"),
+		collectedFrameCount:    r.Counter("python.frame.collected.count"),
+	}
+	p.metrics.phpMetrics = languageCollectionMetrics{
+		unsymbolizedFrameCount: r.Counter("php.frame.unsymbolized.count"),
+		collectedFrameCount:    r.Counter("php.frame.collected.count"),
+	}
 
 	r.WithTags(Labels{"kind": "tracked"}).FuncIntGauge("cgroup.count", func() int64 {
 		if p.cgroups == nil {

@@ -29,11 +29,12 @@ struct TParsedPhpVersion {
     TString ToString() const;
 };
 
+// https://github.com/php/php-src/blob/2e2494fbef842171257b0ae2b6d4392ba303f43f/Zend/zend_vm_opcodes.h#L28
 enum class EZendVmKind {
-    Call,
-    Switch,
-    Goto,
-    Hybrid,
+    Call = 1,
+    Switch = 2,
+    Goto = 3,
+    Hybrid = 4,
 };
 
 TString ToString(const EZendVmKind vmKind);

@@ -41,18 +41,26 @@ type Symbolizer struct {
 	reg   metrics.Registry
 	c     *SymbolizerConfig
 	bpf   *machine.BPF
-	cache *lru.Cache[unwinder.PythonSymbolKey, *Symbol]
+	cache *lru.Cache[unwinder.SymbolKey, *Symbol]
 
 	metrics *symbolizerMetrics
 }
 
-func NewSymbolizer(c *SymbolizerConfig, bpf *machine.BPF, reg metrics.Registry) (*Symbolizer, error) {
+func NewPythonSymbolizer(c *SymbolizerConfig, bpf *machine.BPF, reg metrics.Registry) (*Symbolizer, error) {
+	return newSymbolizer(c, bpf, reg, "python")
+}
+
+func NewPhpSymbolizer(c *SymbolizerConfig, bpf *machine.BPF, reg metrics.Registry) (*Symbolizer, error) {
+	return newSymbolizer(c, bpf, reg, "php")
+}
+
+func newSymbolizer(c *SymbolizerConfig, bpf *machine.BPF, reg metrics.Registry, language string) (*Symbolizer, error) {
 	cacheSize := DefaultMaxCacheSize
 	if c.MaxCacheSize != 0 {
 		cacheSize = int(c.MaxCacheSize)
 	}
 
-	cache, err := lru.New[unwinder.PythonSymbolKey, *Symbol](cacheSize)
+	cache, err := lru.New[unwinder.SymbolKey, *Symbol](cacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create lru cache: %v", err)
 	}
@@ -63,13 +71,13 @@ func NewSymbolizer(c *SymbolizerConfig, bpf *machine.BPF, reg metrics.Registry) 
 		bpf:   bpf,
 		cache: cache,
 		metrics: &symbolizerMetrics{
-			cacheMisses: reg.WithTags(map[string]string{"type": "miss"}).Counter("python.symbolize.cache.access.count"),
-			cacheHits:   reg.WithTags(map[string]string{"type": "hit"}).Counter("python.symbolize.cache.access.count"),
-			cacheSizeFunc: reg.FuncIntGauge("python.symbolize.cache.size", func() int64 {
+			cacheMisses: reg.WithTags(map[string]string{"type": "miss"}).Counter(language + ".symbolize.cache.access.count"),
+			cacheHits:   reg.WithTags(map[string]string{"type": "hit"}).Counter(language + ".symbolize.cache.access.count"),
+			cacheSizeFunc: reg.FuncIntGauge(language+".symbolize.cache.size", func() int64 {
 				return int64(cache.Len())
 			}),
-			cacheCapacity:   reg.IntGauge("python.symbolize.cache.capacity"),
-			failedDecodeUTF: reg.Counter("python.symbolize.failed_decode_utf"),
+			cacheCapacity:   reg.IntGauge(language + ".symbolize.cache.capacity"),
+			failedDecodeUTF: reg.Counter(language + ".symbolize.failed_decode_utf"),
 		},
 	}
 	res.metrics.cacheCapacity.Set(int64(cacheSize))
@@ -153,7 +161,7 @@ func (s *Symbolizer) decodeUTF32(data []byte) string {
 	return string(result)
 }
 
-func extractNameAndFilenameSlices(symbol *unwinder.PythonSymbol) (nameBytes, filenameBytes []byte) {
+func extractNameAndFilenameSlices(symbol *unwinder.Symbol) (nameBytes, filenameBytes []byte) {
 	if symbol.CodepointSize == 1 {
 		nameBytes = symbol.Data[:symbol.NameLength]
 		filenameBytes = symbol.Data[symbol.NameLength : symbol.NameLength+symbol.FilenameLength]
@@ -168,7 +176,7 @@ func extractNameAndFilenameSlices(symbol *unwinder.PythonSymbol) (nameBytes, fil
 	return
 }
 
-func (s *Symbolizer) Symbolize(key *unwinder.PythonSymbolKey) (*Symbol, bool) {
+func (s *Symbolizer) Symbolize(key *unwinder.SymbolKey) (*Symbol, bool) {
 	if symbol, ok := s.cache.Get(*key); ok {
 		s.metrics.cacheHits.Inc()
 		return symbol, true
@@ -176,7 +184,7 @@ func (s *Symbolizer) Symbolize(key *unwinder.PythonSymbolKey) (*Symbol, bool) {
 
 	s.metrics.cacheMisses.Inc()
 
-	symbol, exists := s.bpf.SymbolizePython(key)
+	symbol, exists := s.bpf.SymbolizeInterpeter(key)
 	if !exists {
 		return nil, false
 	}

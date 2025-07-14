@@ -1,11 +1,11 @@
 #pragma once
 
-#include "binary.h"
-#include "metrics.h"
-#include "process.h"
-#include "pthread.h"
-#include "py_types.h"
-#include "py_threads.h"
+#include "../binary.h"
+#include "../metrics.h"
+#include "../process.h"
+#include "../pthread.h"
+#include "types.h"
+#include "threads.h"
 
 #include <bpf/bpf.h>
 
@@ -165,7 +165,7 @@ static ALWAYS_INLINE bool python_read_string_object(char* buf, size_t buf_size, 
     if (length > buf_size) {
         length = buf_size;
     }
-    length &= PYTHON_STRING_LENGTH_VERIFIER_MASK;
+    length &= INTERPRETER_SYMBOL_STRING_LENGTH_VERIFIER_MASK;
 
     err = bpf_probe_read_user_str(buf, length, (void*) py_object + config->offsets.py_string_object_offsets.data);
     if (err <= 0)  {
@@ -233,7 +233,7 @@ static ALWAYS_INLINE bool python_read_unicode_object(char* buf, size_t buf_size,
         bytes_length = buf_size;
     }
 
-    bytes_length &= PYTHON_STRING_LENGTH_VERIFIER_MASK;
+    bytes_length &= INTERPRETER_SYMBOL_STRING_LENGTH_VERIFIER_MASK;
     err = bpf_probe_read_user(buf, bytes_length, (void*) str);
     if (err != 0) {
         BPF_TRACE("python: failed to read unicode string: %d", err);
@@ -279,7 +279,7 @@ static ALWAYS_INLINE bool python_read_symbol(struct python_state* state) {
         bytes_name_length = sizeof(state->symbol.data);
     }
     // make verifier happy
-    bytes_name_length &= PYTHON_STRING_LENGTH_VERIFIER_MASK;
+    bytes_name_length &= INTERPRETER_SYMBOL_STRING_LENGTH_VERIFIER_MASK;
 
     buf = state->symbol.data + bytes_name_length;
     if (!python_read_string(
@@ -296,7 +296,7 @@ static ALWAYS_INLINE bool python_read_symbol(struct python_state* state) {
     return true;
 }
 
-static ALWAYS_INLINE bool python_process_frame(struct python_frame* res_frame, void* frame, struct python_state* state) {
+static ALWAYS_INLINE bool python_process_frame(struct interpreter_frame* res_frame, void* frame, struct python_state* state) {
     if (state == NULL || res_frame == NULL) {
         return false;
     }
@@ -318,8 +318,8 @@ static ALWAYS_INLINE bool python_process_frame(struct python_frame* res_frame, v
     }
 
     state->symbol_key.pid = state->pid;
-    state->symbol_key.code_object = (u64) code;
-    err = bpf_probe_read(&state->symbol_key.co_firstlineno, sizeof(int), (void*) code + state->config.offsets.py_code_object_offsets.co_firstlineno);
+    state->symbol_key.object_addr = (u64) code;
+    err = bpf_probe_read(&state->symbol_key.linestart, sizeof(int), (void*) code + state->config.offsets.py_code_object_offsets.co_firstlineno);
     if (err != 0) {
         BPF_TRACE("python: failed to read co_firstlineno: %d", err);
         return false;
@@ -327,13 +327,13 @@ static ALWAYS_INLINE bool python_process_frame(struct python_frame* res_frame, v
 
     res_frame->symbol_key = state->symbol_key;
 
-    struct python_symbol* symbol = bpf_map_lookup_elem(&python_symbols, &state->symbol_key);
+    struct python_symbol* symbol = bpf_map_lookup_elem(&interpreter_symbols, &state->symbol_key);
     if (symbol != NULL) {
         BPF_TRACE(
             "python: already saved this symbol pid: %u, code_object %p, first line: %d",
             state->symbol_key.pid,
-            state->symbol_key.code_object,
-            state->symbol_key.co_firstlineno
+            state->symbol_key.object_addr,
+            state->symbol_key.linestart
         );
         return true;
     }
@@ -347,7 +347,7 @@ static ALWAYS_INLINE bool python_process_frame(struct python_frame* res_frame, v
         return false;
     }
 
-    err = bpf_map_update_elem(&python_symbols, &state->symbol_key, &state->symbol, BPF_ANY);
+    err = bpf_map_update_elem(&interpreter_symbols, &state->symbol_key, &state->symbol, BPF_ANY);
     if (err != 0) {
         BPF_TRACE("python: failed to update python symbol: %d", err);
     }
@@ -377,9 +377,9 @@ static ALWAYS_INLINE void python_walk_stack(
             // stub frame in case python is called from C code.
             //  2 consecutive frames must not be owned by C stack.
             BPF_TRACE("python: frame owned by c stack");
-            state->frames[i].symbol_key.co_firstlineno = PYTHON_CFRAME_LINENO_ID;
+            state->frames[i].symbol_key.linestart = PYTHON_CFRAME_LINENO_ID;
             state->frames[i].symbol_key.pid = 0;
-            state->frames[i].symbol_key.code_object = 0;
+            state->frames[i].symbol_key.object_addr = 0;
             state->frame_count = i + 1;
             goto move_to_next_frame;
         }

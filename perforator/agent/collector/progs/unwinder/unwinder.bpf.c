@@ -11,7 +11,7 @@
 #include "metrics.h"
 #include "output.h"
 #include "pidns.h"
-#include "python.h"
+#include "python/unwind.h"
 #include "php/unwind.h"
 #include "task.h"
 #include "thread_local.h"
@@ -166,13 +166,24 @@ static NOINLINE void fill_stack(struct stack* stack, u64* target) {
 }
 
 static NOINLINE void fill_python_stack(struct python_state* state, struct record_sample* target) {
-    target->python_stack_len = state->frame_count;
+    target->python_stack.len = state->frame_count;
     if (state->frame_count > 0) {
         for (int i = 0; i < PYTHON_MAX_STACK_DEPTH && i < state->frame_count; i++) {
-            target->python_stack[i] = state->frames[i];
+            target->python_stack.frames[i] = state->frames[i];
         }
     }
 }
+
+#ifdef PERFORATOR_ENABLE_PHP
+static NOINLINE void fill_php_stack(struct php_state* state, struct record_sample* target) {
+    target->php_stack.len = state->frame_count;
+    if (state->frame_count > 0) {
+        for (int i = 0; i < PHP_MAX_STACK_DEPTH && i < state->frame_count; i++) {
+            target->php_stack.frames[i] = state->frames[i];
+        }
+    }
+}
+#endif
 
 static ALWAYS_INLINE void record_sample(
     void* ctx,
@@ -189,6 +200,10 @@ static ALWAYS_INLINE void record_sample(
     sample->cpu = bpf_get_smp_processor_id();
 
     fill_python_stack(&state->python_state, sample);
+
+#ifdef PERFORATOR_ENABLE_PHP
+    fill_php_stack(&state->php_state, sample);
+#endif
 
     u64 ktime = bpf_ktime_get_ns();
     sample->runtime = ktime - state->prog_starttime;

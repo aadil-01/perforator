@@ -14,7 +14,7 @@ var (
 	maxSupportedVersion = encodeVersion(&php.PhpVersion{
 		Major:   7,
 		Minor:   4,
-		Release: 0,
+		Release: 33,
 	})
 )
 
@@ -45,5 +45,24 @@ func encodeVersion(version *php.PhpVersion) uint32 {
 }
 
 func ParsePhpUnwinderConfig(config *php.PhpConfig) *unwinder.PhpConfig {
-	return &unwinder.PhpConfig{Version: encodeVersion(config.Version), ExecutorGlobalsElfVaddr: config.ExecutorGlobalsELFVaddr}
+	return &unwinder.PhpConfig{Version: encodeVersion(config.Version), ExecutorGlobalsElfVaddr: config.ExecutorGlobalsELFVaddr, Offsets: unwinder.PhpInternalsOffsets{
+		ZendExecuteData: 488,
+		ExecuteData: unwinder.PhpExecuteDataOffsets{
+			Function:        24,
+			ThisTypeInfo:    40,
+			PrevExecuteData: 48,
+		},
+		Function: unwinder.PhpFunctionOffsets{
+			Type:           0,
+			CommonFuncname: 8,
+			OpArray: unwinder.PhpOpArrayOffsets{ // differs for other versions
+				Filename:  136, // for 7.4
+				Linestart: 144, // for 7.4
+			},
+		},
+		ZendString: unwinder.PhpZendStringOffsets{
+			Len: 16,
+			Val: 24,
+		},
+	}}
 }
