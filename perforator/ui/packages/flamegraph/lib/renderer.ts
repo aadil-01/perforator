@@ -322,7 +322,8 @@ export class FlamegraphOffseter {
                     continue;
                 }
                 updateFrameWindows(i);
-                for(let visitor of visitors){
+                for (let vi = 0; vi < visitors.length; vi++) {
+                    const visitor = visitors[vi];
                     visitor.run(this.rows[h][i]);
                 }
                 const isVisible = this.visibleNode(this.rows[h][i]);
