@@ -602,8 +602,8 @@ func (c *Client) UploadRenderedProfile(
 		},
 	}
 	if formatOptions.Flamegraph != nil {
-		req.Format.Format = &perforator.RenderFormat_Flamegraph{
-			Flamegraph: formatOptions.Flamegraph,
+		req.Format.Format = &perforator.RenderFormat_JSONFlamegraph{
+			JSONFlamegraph: formatOptions.Flamegraph,
 		}
 	} else {
 		req.Format.Format = &perforator.RenderFormat_TextProfile{
