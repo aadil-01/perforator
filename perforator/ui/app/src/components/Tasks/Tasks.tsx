@@ -2,15 +2,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
-import { ActionsPanel } from '@gravity-ui/components';
-import type { ActionItem } from '@gravity-ui/components/build/esm/components/ActionsPanel/types';
+// import type { ActionItem } from '@gravity-ui/components/build/esm/components/ActionsPanel/types';
 import type {
+    ActionsPanelProps,
     LabelProps,
     SelectOption,
     TableColumnConfig,
-    TableSettingsData,
-} from '@gravity-ui/uikit';
-import {
+    TableSettingsData } from '@gravity-ui/uikit';
+import { ActionsPanel,
     Button,
     ClipboardButton,
     Flex,
@@ -45,6 +44,8 @@ import { type TimeInterval, TimeIntervalInput } from '../TimeIntervalInput/TimeI
 
 import './Tasks.scss';
 
+
+type ActionItem = ActionsPanelProps['actions'][number]
 
 const DEFAULT_FROM = 'now-6M';
 

@@ -2,10 +2,9 @@ import * as React from 'react'
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { type NavigateFunction } from 'react-router-dom';
 
-import { HelpPopover } from '@gravity-ui/components';
 import { ArrowUpRightFromSquare, Magnifier } from '@gravity-ui/icons';
 import type { ProgressColorStops, TableColumnConfig, TableSettingsData, TableSortState } from '@gravity-ui/uikit';
-import { Icon, Link as UIKitLink, Progress, Table, TextInput, withTableSettings, withTableSorting } from '@gravity-ui/uikit';
+import { Icon, Link as UIKitLink, Progress, Table, TextInput, withTableSettings, withTableSorting, HelpMark } from '@gravity-ui/uikit';
 
 import { NegativePositiveProgress } from '../NegativePositiveProgress/NegativePositiveProgress';
 import type { ProfileData, StringifiedNode } from '../../models/Profile';
@@ -136,7 +135,7 @@ function topColumns (
             id: key,
             name: () => <>
                 {name}
-                <HelpPopover placement={['bottom', 'bottom']} content={getHelpContent(key)}/>
+                <HelpMark popoverProps={{placement: ['bottom', 'bottom'] }}>{getHelpContent(key)}</HelpMark>
             </>,
             template: (node) => {
                 const count = node[key];

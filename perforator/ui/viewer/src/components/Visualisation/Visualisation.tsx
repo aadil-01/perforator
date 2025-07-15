@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import type { FlamegraphProps, QueryKeys } from '@perforator/flamegraph';
 import { calculateTopForTable, Flamegraph, prerenderColors, SideBySide, TopTable } from '@perforator/flamegraph';
 
-import { Loader, Tabs, useThemeType } from '@gravity-ui/uikit';
-
+import { Loader, useThemeType } from '@gravity-ui/uikit';
+import { Tabs } from '@gravity-ui/uikit/legacy';
 import { Link } from '../Link/Link';
 import { createSuccessToast } from '../../utils/toaster';
 

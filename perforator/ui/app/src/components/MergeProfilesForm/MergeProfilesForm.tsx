@@ -133,7 +133,7 @@ export const MergeProfilesForm: React.FC<MergeProfilesFormProps> = props => {
                 view="action"
             >
                 Merge profiles
-                <Hotkey value="cmd+enter" />
+                <Hotkey value="cmd+enter" view="dark" />
             </Button>
             <DropdownMenu popupProps={{ placement: 'bottom-end' }} items={[
                 { action: () => submitTask({ raw: true }), text: 'Merge into pprof' },

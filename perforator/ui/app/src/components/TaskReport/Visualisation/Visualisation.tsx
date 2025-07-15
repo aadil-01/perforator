@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom';
 import type { FlamegraphProps, QueryKeys, TopTableProps } from '@perforator/flamegraph';
 import { calculateTopForTable as calculateTopForTableOriginal, Flamegraph, SideBySide, TopTable } from '@perforator/flamegraph';
 
-import { Loader, Tabs } from '@gravity-ui/uikit';
+import { Loader } from '@gravity-ui/uikit';
+import { Tabs } from '@gravity-ui/uikit/legacy';
 
 import { Beta } from 'src/components/Beta/Beta';
 import { useFullscreen } from 'src/components/Fullscreen/FullscreenContext';

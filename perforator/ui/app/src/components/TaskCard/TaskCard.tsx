@@ -2,9 +2,8 @@ import React from 'react';
 
 import { useNavigate } from 'react-router-dom';
 
-import { HelpPopover } from '@gravity-ui/components';
 import { ArrowUpRightFromSquare } from '@gravity-ui/icons';
-import { Button, Card, ClipboardButton, Disclosure, Divider, Icon, Link } from '@gravity-ui/uikit';
+import { Button, Card, ClipboardButton, Disclosure, Divider, HelpMark, Icon, Link } from '@gravity-ui/uikit';
 
 import { uiFactory } from 'src/factory';
 import type { MergeProfilesRequest, ProfileQuery } from 'src/generated/perforator/proto/perforator/perforator';
@@ -137,11 +136,11 @@ const getExecutor = ({ attempts }: { attempts?: TaskStatus['Attempts'] }) => {
         <Executor executor={executor} />
         {attempts.length > 1 ?
             (
-                <HelpPopover tooltipClassName={'task-card__popover-content'} content={attempts.map(attempt => {
+                <HelpMark popoverProps={{ className: 'task-card__popover-content' }} >{attempts.map(attempt => {
                     return (
                         <div><Executor executor={attempt.Executor} /></div>
                     );
-                })} />
+                })}</HelpMark>
             )
             : null}
     </>;
