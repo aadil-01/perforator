@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/member-ordering */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
-import React from 'react';
+import type React from 'react';
 
 import type { SubheaderMenuItem } from '@gravity-ui/navigation';
 
 import type { QueryInput } from 'src/components/MergeProfilesForm/QueryInput';
 import { QUERY_INPUTS } from 'src/components/MergeProfilesForm/queryInputs';
-import { Select, type SelectProps } from 'src/components/Select/Select';
 import type { ShareStringBuilder } from 'src/components/ShareButton/utils';
 import { SHARE_FORMATS } from 'src/components/ShareButton/utils';
 import type { ProfileData, StringifiedNode } from 'src/models/Profile';
@@ -57,8 +56,6 @@ export class UIFactory {
 
     rum = (): Rum => fakeRum;
     logError: SendError = (error, additional, level) => console.error(error, additional, level);
-
-    renderSelect = (props: SelectProps): React.ReactNode => (<Select {...props} />);
 
     parseLegacyFormat: ((data: string) => ProfileData) | undefined = undefined;
 
