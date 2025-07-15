@@ -28,7 +28,7 @@ func createStorageBundle(
 	// TODO: this context should be tied to e.g. Run() duration.
 	bgCtx := context.TODO()
 
-	storageBundle, err := bundle.NewStorageBundle(initCtx, bgCtx, l, reg, &conf.Storage)
+	storageBundle, err := bundle.NewStorageBundle(initCtx, bgCtx, l, "cluster-top", reg, &conf.Storage)
 	if err != nil {
 		return nil, err
 	}

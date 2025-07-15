@@ -110,7 +110,7 @@ var (
 			// TODO: this context should be tied to e.g. Run() duration.
 			bgCtx := context.TODO()
 
-			bundle, err := bundle.NewStorageBundle(initCtx, bgCtx, logger, r, conf)
+			bundle, err := bundle.NewStorageBundle(initCtx, bgCtx, logger, "gc", r, conf)
 			if err != nil {
 				logger.Fatal(ctx, "Failed to init storage bundle", log.Error(err))
 			}

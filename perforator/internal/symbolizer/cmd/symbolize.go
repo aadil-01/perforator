@@ -126,7 +126,7 @@ var (
 			// TODO: this context should be tied to e.g. Run() duration.
 			bgCtx := context.TODO()
 
-			bundle, err := bundle.NewStorageBundleFromConfig(initCtx, bgCtx, logger, &nop.Registry{}, configPath)
+			bundle, err := bundle.NewStorageBundleFromConfig(initCtx, bgCtx, logger, "local-symbolize", &nop.Registry{}, configPath)
 			if err != nil {
 				return err
 			}

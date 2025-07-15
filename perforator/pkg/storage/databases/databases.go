@@ -24,7 +24,7 @@ type Databases struct {
 }
 
 // bgCtx should be valid for as long as databases are used
-func NewDatabases(ctx context.Context, bgCtx context.Context, l xlog.Logger, c *Config, reg metrics.Registry) (*Databases, error) {
+func NewDatabases(ctx context.Context, bgCtx context.Context, l xlog.Logger, c *Config, app string, reg metrics.Registry) (*Databases, error) {
 	res := &Databases{}
 	var err error
 
@@ -36,7 +36,7 @@ func NewDatabases(ctx context.Context, bgCtx context.Context, l xlog.Logger, c *
 	}
 
 	if c.PostgresCluster != nil {
-		res.PostgresCluster, err = postgres.NewCluster(ctx, l, c.PostgresCluster)
+		res.PostgresCluster, err = postgres.NewCluster(ctx, bgCtx, l, app, c.PostgresCluster)
 		if err != nil {
 			return nil, fmt.Errorf("failed to init postgres cluster: %w", err)
 		}
