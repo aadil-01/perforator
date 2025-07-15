@@ -1319,7 +1319,7 @@
     "title": "ESLint",
     "description": "Статический анализатор кода (линтер).\n\nОсуществляет поиск, а иногда и исправление частых ошибок.\nМожет следить за стилем кода, форматированием.\n\nРасширяем плагинами (Typescript, Prettier, Stylelint).\n\n[Подробнее про линтинг в tier-0](https://docs.yandex-team.ru/frontend-in-arcadia/index/quick-start#lint)",
     "type": "NPM_PACKAGE",
-    "default": "9.29.0",
+    "default": "9.30.0",
     "links": {
       "Home": "https://eslint.org",
       "Sources": "https://github.com/eslint/eslint",
@@ -1328,6 +1328,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "9.30.0": {
+        "add_date": "2025-07-15T05:32:32",
+        "resources": []
+      },
       "9.29.0": {
         "add_date": "2025-07-01T05:31:05",
         "resources": []
