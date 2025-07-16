@@ -69,6 +69,9 @@
 
 .flamegraph__canvas {
     width: 100%;
+    /* uikit forces transition-duration into non-zero state for people with prefers-reduced-motion: reduce */
+    /* see more: https://github.com/gravity-ui/uikit/blob/4d068a9d2bf6390970c904e15bb646ddc7438e1a/styles/styles.scss#L52 */
+    transition-duration: 0s !important;
 }
 
 .flamegraph__label,
