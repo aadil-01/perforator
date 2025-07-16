@@ -5,7 +5,7 @@ import { ArrowRightArrowLeft, BarsAscendingAlignLeftArrowUp, BarsDescendingAlign
 import { Button, Icon, Switch } from '@gravity-ui/uikit';
 
 import { Hotkey } from '../Hotkey/Hotkey';
-import type { ProfileData } from '../../models/Profile';
+import type { ProfileData, StringifiedNode } from '../../models/Profile';
 import type { UserSettings } from '../../models/UserSettings';
 import { cn } from '../../utils/cn';
 
@@ -34,9 +34,10 @@ export interface FlamegraphProps {
     getState: GetStateFromQuery<QueryKeys>;
     setState: SetStateFromQuery<QueryKeys>;
     className?: string;
+    onFrameClick?: (event: React.MouseEvent, frame: StringifiedNode) => void;
 }
 
-export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSettings, profileData, goToDefinitionHref, onFinishRendering, onSuccess, getState: getQuery, setState: setQuery, className }) => {
+export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSettings, profileData, goToDefinitionHref, onFinishRendering, onSuccess, getState: getQuery, setState: setQuery, className, onFrameClick }) => {
     const flamegraphContainer = React.useRef<HTMLDivElement | null>(null);
     const canvasRef = React.useRef<HTMLDivElement | null>(null);
     const [popupData, setPopupData] = useState<null | PopupData>(null);
@@ -131,11 +132,35 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
         setPopupData({ offset: [offsetX, -offsetY], node: stringifiedNode, coords: [coordsClient.h, coordsClient.i] });
     }, [profileData]);
 
-    const handleOutsideContextMenu: React.MouseEventHandler = React.useCallback((e) => {
+    const handleOnClick: React.MouseEventHandler = React.useCallback((e) => {
         if (popupData) {
             setPopupData(null);
             e.preventDefault();
             e.stopPropagation();
+        }
+
+
+        if (
+            !onFrameClick ||
+            !flamegraphContainer.current ||
+            !profileData ||
+            !flamegraphOffsets.current
+        ) {
+            return;
+        }
+        e.preventDefault();
+
+        const offsetX = e.nativeEvent.offsetX;
+        const offsetY = e.nativeEvent.offsetY;
+        const coordsClient = flamegraphOffsets.current!.getCoordsByPosition(offsetX, offsetY);
+
+        if (!coordsClient) {
+            return;
+        }
+
+        const stringifiedNode = readNodeStrings(profileData, coordsClient);
+        if (stringifiedNode) {
+            onFrameClick(e, stringifiedNode);
         }
     }, [popupData]);
 
@@ -223,7 +248,7 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                 </div>
 
                 <div id="profile" className="flamegraph__content">
-                    <div ref={canvasRef} onClickCapture={handleOutsideContextMenu} onContextMenu={handleContextMenu}>
+                    <div ref={canvasRef} onClickCapture={handleOnClick} onContextMenu={handleContextMenu}>
                         <canvas className="flamegraph__canvas" />
                     </div>
                     <template className="flamegraph__label-template" dangerouslySetInnerHTML={{
