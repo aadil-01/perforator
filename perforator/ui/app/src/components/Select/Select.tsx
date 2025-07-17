@@ -113,6 +113,7 @@ export const Select: React.FC<SelectProps> = props => {
                     />
                 </div>
             )}
+            controlClassName={b('control')}
             popupClassName={b('popup')}
             // controls loader in the end of the list in select
             loading={hasMore || loadState === 'loading'}
