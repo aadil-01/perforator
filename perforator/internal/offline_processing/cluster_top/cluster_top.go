@@ -296,6 +296,12 @@ func (t *ClusterTop) processServiceProfiles(
 	}
 	close(metaBatchesChan)
 
+	gsyms, err := t.symbolizer.DownloadAllGSYMs(ctx, buildIDs)
+	if err != nil {
+		return nil, err
+	}
+	defer gsyms.Release()
+
 	aggregators := make([]*ServicePerfTopAggregator, degreeOfParallelism)
 	defer func() {
 		for _, aggregator := range aggregators {
@@ -304,11 +310,6 @@ func (t *ClusterTop) processServiceProfiles(
 			}
 		}
 	}()
-
-	gsyms, err := t.symbolizer.DownloadAllGSYMs(ctx, buildIDs)
-	if err != nil {
-		return nil, err
-	}
 
 	processedProfiles := atomic.Int64{}
 
