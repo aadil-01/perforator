@@ -10,7 +10,7 @@
 #include <util/generic/array_ref.h>
 
 namespace NPerforator::NProto::NPProf {
-class Profile;
+class ProfileLight;
 }
 
 namespace NPerforator::NAutofdo {
@@ -92,7 +92,7 @@ public:
     // Parses the raw profile bytes and adds the profile into builder.
     void AddProfile(TArrayRef<const char> profileBytes);
     // Adds the profile into builder.
-    void AddProfile(const NPerforator::NProto::NPProf::Profile& profile);
+    void AddProfile(const NPerforator::NProto::NPProf::ProfileLight& profile);
 
     // Add the pre-aggregated data into builder.
     void AddData(TAutofdoInputData&& otherData);
@@ -136,7 +136,7 @@ public:
     void FeedProfile(TArrayRef<const char> profileBytes);
 
     // Aggregates BuildID frequencies from the profile.
-    void FeedProfile(const NPerforator::NProto::NPProf::Profile& profile);
+    void FeedProfile(const NPerforator::NProto::NPProf::ProfileLight& profile);
 
     // Returns a reference to the frequency map of Feed-ed buildIDs.
     const absl::flat_hash_map<std::string, ui64>& GetFrequencyMap() const;
