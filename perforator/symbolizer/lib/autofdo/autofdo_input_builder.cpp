@@ -205,6 +205,9 @@ std::string SerializeAutofdoInput(const TAutofdoInputData& data) {
 
 // The format description could be found here
 // https://github.com/llvm/llvm-project/blob/release/18.x/bolt/include/bolt/Profile/DataAggregator.h#L389
+//
+// TODO : PERFORATOR-910, the format should be improved.
+// See https://github.com/llvm/llvm-project/issues/149382#issuecomment-3085289377
 std::string SerializeAutofdoInputInBoltPreaggregatedFormat(const TAutofdoInputData& data) {
     std::string result{};
     result.reserve(16 * 1024 * 1024);
