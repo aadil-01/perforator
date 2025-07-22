@@ -40,6 +40,9 @@ type Condition struct {
 
 type Value interface {
 	Repr() string
+	ToSelector() (string, error)
+
+	raw() string
 
 	// To seal the set of implementors.
 	unexported()
@@ -73,20 +76,60 @@ func (v Empty) Repr() string {
 	return "empty_value"
 }
 
+func (v Empty) ToSelector() (string, error) {
+	return v.raw(), nil
+}
+
+func (v Empty) raw() string {
+	return ""
+}
+
 func (v String) Repr() string {
-	return strconv.Quote(v.Value)
+	return strconv.Quote(v.raw())
+}
+
+func (v String) ToSelector() (string, error) {
+	return smartquote(v.raw())
+}
+
+func (v String) raw() string {
+	return v.Value
 }
 
 func (v Int) Repr() string {
+	return v.raw()
+}
+
+func (v Int) ToSelector() (string, error) {
+	return v.raw(), nil
+}
+
+func (v Int) raw() string {
 	return v.Value.Text(10)
 }
 
 func (v Float) Repr() string {
+	return v.raw()
+}
+
+func (v Float) ToSelector() (string, error) {
+	return v.raw(), nil
+}
+
+func (v Float) raw() string {
 	// TODO: distinguish int and float repr.
 	return strconv.FormatFloat(v.Value, 'g', 15, 64)
 }
 
 func (v Duration) Repr() string {
+	return v.raw()
+}
+
+func (v Duration) ToSelector() (string, error) {
+	return v.raw(), nil
+}
+
+func (v Duration) raw() string {
 	return v.Value.String()
 }
 
