@@ -1,6 +1,5 @@
 #include "service_perf_top_aggregator.h"
 
-#include <perforator/proto/pprofprofile/lightweightprofile.pb.h>
 #include <perforator/symbolizer/lib/symbolize/symbolizer.h>
 
 #include <library/cpp/yt/compact_containers/compact_vector.h>
@@ -238,7 +237,7 @@ void TServicePerfTopAggregator::AddProfile(TArrayRef<const char> service, TArray
         return;
     }
 
-    NPerforator::NProto::NPProf::ProfileLight profile{};
+    auto& profile = ProfileForMemoryReuse_;
     if (!profile.ParseFromString(std::string_view{profileBytes.data(), profileBytes.size()})) {
         return;
     }

@@ -6,14 +6,12 @@
 
 #include <perforator/symbolizer/lib/gsym/gsym_symbolizer.h>
 
+#include <perforator/proto/pprofprofile/lightweightprofile.pb.h>
+
 #include <util/generic/array_ref.h>
 
 #include <vector>
 #include <string>
-
-namespace NPerforator::NProto::NPProf {
-class ProfileLight;
-}
 
 namespace NPerforator::NClusterTop {
 
@@ -73,6 +71,8 @@ private:
     ui128 TotalCycles_{0};
 
     ui64 TotalProfiles_{0};
+
+    NPerforator::NProto::NPProf::ProfileLight ProfileForMemoryReuse_;
 };
 
 }
