@@ -14,11 +14,8 @@
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
     "test:e2e": "playwright test",
-    "release:preview": "ya tool aws s3 sync dist s3://preview-perforator-ui/$PULL_REQUEST_ID --exclude '**/*.map' --delete",
     "release:testing": "ya tool nots build && ya tool nots run release:s3:testing",
     "release": "ya tool nots build && ya tool nots run release:s3",
-    "release:s3": "ya tool aws s3 sync dist s3://perforator-ui --exclude '**/*.map' --delete",
-    "release:s3:testing": "ya tool aws s3 sync dist s3://testing-perforator-ui --exclude '**/*.map' --delete",
     "test": "jest"
   },
   "dependencies": {
