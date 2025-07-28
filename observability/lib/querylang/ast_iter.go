@@ -2,6 +2,7 @@ package querylang
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/yandex/perforator/observability/lib/querylang/operator"
 )
@@ -84,6 +85,16 @@ func (f *Selector) ReplaceConditionValue(field string, oldValue Value, newValues
 			matcher.Conditions = append(matcher.Conditions, newConditions...)
 		}
 	}
+}
+
+func (f *Selector) RemoveFieldsMatchers(fields ...string) {
+	filtered := make([]*Matcher, 0, len(f.Matchers))
+	for _, m := range f.Matchers {
+		if !slices.Contains(fields, m.Field) {
+			filtered = append(filtered, m)
+		}
+	}
+	f.Matchers = filtered
 }
 
 // CandidateValues returns a superset of values for each field in Selector.
