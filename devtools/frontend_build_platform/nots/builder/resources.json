@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-07-11T08:16:37.302Z",
+    "created": "2025-07-25T14:55:29Z",
     "pr": {
-      "id": 9360064,
-      "author": "vturov",
-      "summary": "FBP-2319: nots: do not mix nm_bundle and local_cli flags"
+      "id": 9500692,
+      "author": "khoden",
+      "summary": "FBP-2366: nots/builder: Релизный флоу не работает Пробую сделать, чтобы бралось из разных мест информация о PR в зависимости откуда релизится (из PR или из релизного flow)"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9183753619"
+      "uri": "sbr:9309983085"
     },
     "darwin-arm64": {
-      "uri": "sbr:9183751242"
+      "uri": "sbr:9309980829"
     },
     "linux": {
-      "uri": "sbr:9183758519"
+      "uri": "sbr:9309987506"
     },
     "linux-aarch64": {
-      "uri": "sbr:9183755910"
+      "uri": "sbr:9309985279"
     }
   }
 }
