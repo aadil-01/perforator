@@ -43,33 +43,26 @@ type Value interface {
 	ToSelector() (string, error)
 
 	raw() string
-
-	// To seal the set of implementors.
-	unexported()
+	clone() Value
 }
 
 type Empty struct {
-	valueStub
 }
 
 type String struct {
 	Value string
-	valueStub
 }
 
 type Int struct {
 	Value *big.Int
-	valueStub
 }
 
 type Float struct {
 	Value float64
-	valueStub
 }
 
 type Duration struct {
 	Value time.Duration
-	valueStub
 }
 
 func (v Empty) Repr() string {
@@ -84,6 +77,10 @@ func (v Empty) raw() string {
 	return ""
 }
 
+func (v Empty) clone() Value {
+	return v
+}
+
 func (v String) Repr() string {
 	return strconv.Quote(v.raw())
 }
@@ -96,6 +93,10 @@ func (v String) raw() string {
 	return v.Value
 }
 
+func (v String) clone() Value {
+	return String{Value: v.Value}
+}
+
 func (v Int) Repr() string {
 	return v.raw()
 }
@@ -106,6 +107,10 @@ func (v Int) ToSelector() (string, error) {
 
 func (v Int) raw() string {
 	return v.Value.Text(10)
+}
+
+func (v Int) clone() Value {
+	return Int{Value: new(big.Int).Set(v.Value)}
 }
 
 func (v Float) Repr() string {
@@ -121,6 +126,10 @@ func (v Float) raw() string {
 	return strconv.FormatFloat(v.Value, 'g', 15, 64)
 }
 
+func (v Float) clone() Value {
+	return Float{Value: v.Value}
+}
+
 func (v Duration) Repr() string {
 	return v.raw()
 }
@@ -133,6 +142,6 @@ func (v Duration) raw() string {
 	return v.Value.String()
 }
 
-type valueStub struct{}
-
-func (v valueStub) unexported() {}
+func (v Duration) clone() Value {
+	return Duration{Value: v.Value}
+}

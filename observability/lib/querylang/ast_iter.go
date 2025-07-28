@@ -7,6 +7,28 @@ import (
 	"github.com/yandex/perforator/observability/lib/querylang/operator"
 )
 
+func (f *Selector) Clone() *Selector {
+	matchers := make([]*Matcher, 0, len(f.Matchers))
+	for _, m := range f.Matchers {
+		conditions := make([]*Condition, 0, len(m.Conditions))
+		for _, c := range m.Conditions {
+			conditions = append(conditions, &Condition{
+				Operator: c.Operator,
+				Inverse:  c.Inverse,
+				Value:    c.Value.clone(),
+			})
+		}
+		matchers = append(matchers, &Matcher{
+			Field:      m.Field,
+			Operator:   m.Operator,
+			Conditions: conditions,
+		})
+	}
+	return &Selector{
+		Matchers: matchers,
+	}
+}
+
 func (f *Selector) IsEmpty() bool {
 	return len(f.Matchers) == 0
 }
