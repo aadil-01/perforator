@@ -13,9 +13,9 @@ import { useFullscreen } from 'src/components/Fullscreen/FullscreenContext';
 import { Link } from 'src/components/Link/Link';
 import { uiFactory } from 'src/factory';
 import { withMeasureTime } from 'src/utils/logging';
+import { useTypedQuery } from 'src/utils/query';
 import { createSuccessToast } from 'src/utils/toaster';
 
-import { useTypedQuery } from '../Flamegraph/query-utils';
 import type { Tab } from '../TaskFlamegraph/TaskFlamegraph';
 
 import './Visualisation.css';

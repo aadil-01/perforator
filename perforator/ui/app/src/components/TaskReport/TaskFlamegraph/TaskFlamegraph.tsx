@@ -11,8 +11,8 @@ import { uiFactory } from 'src/factory';
 import type { ProfileData } from 'src/models/Profile';
 import { useUserSettings } from 'src/providers/UserSettingsProvider/UserSettingsContext.ts';
 import { withMeasureTime } from 'src/utils/logging';
+import { useTypedQuery } from 'src/utils/query';
 
-import { useTypedQuery } from '../Flamegraph/query-utils';
 import { Visualisation } from '../Visualisation/Visualisation';
 
 
