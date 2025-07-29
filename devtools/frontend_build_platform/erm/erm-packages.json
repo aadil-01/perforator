@@ -5879,7 +5879,7 @@
     "title": "webpack",
     "description": "Классический сборщик frontend проектов\n\nВ tier-0 используется в модуле/макросе [`TS_WEBPACK()`](https://docs.yandex-team.ru/frontend-in-arcadia/references/TS_WEBPACK).",
     "type": "NPM_PACKAGE",
-    "default": "5.99.9",
+    "default": "5.100.1",
     "links": {
       "Home": "https://webpack.js.org",
       "Sources": "https://github.com/webpack/webpack",
@@ -5889,6 +5889,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "5.100.1": {
+        "add_date": "2025-07-29T05:43:56",
+        "resources": []
+      },
       "5.99.9": {
         "add_date": "2025-06-10T05:31:45",
         "resources": []
