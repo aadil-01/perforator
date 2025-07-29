@@ -41,6 +41,7 @@
   "docs/_assets/ui-initial-page.png":"perforator/docs/opensource/_assets/ui-initial-page.png",
   "docs/_assets/ui-tasks-page.png":"perforator/docs/opensource/_assets/ui-tasks-page.png",
   "docs/en/explanation/architecture/overview.md":"perforator/docs/opensource/en/explanation/architecture/overview.md",
+  "docs/en/explanation/profiling/address-conversion.md":"perforator/docs/opensource/en/explanation/profiling/address-conversion.md",
   "docs/en/guides/autofdo.md":"perforator/docs/opensource/en/guides/autofdo.md",
   "docs/en/guides/build.md":"perforator/docs/opensource/en/guides/build.md",
   "docs/en/guides/cli/fetch.md":"perforator/docs/opensource/en/guides/cli/fetch.md",

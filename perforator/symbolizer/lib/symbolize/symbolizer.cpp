@@ -125,8 +125,8 @@ TCodeSymbolizer::TCodeSymbolizer()
 {
 }
 
-TSmallVector<llvm::DILineInfo> TCodeSymbolizer::Symbolize(TStringBuf moduleName, ui64 addr) {
-    const auto offset = GetOffsetByModule(moduleName);
+TSmallVector<llvm::DILineInfo> TCodeSymbolizer::Symbolize(TStringBuf moduleName, ui64 offset) {
+    const auto moduleOffset = GetOffsetByModule(moduleName);
 
     // For some reason LLVMSymbolizer doesn't accept std::string_view as moduleName,
     // so let's cache the string as a minor optimization.
@@ -135,7 +135,7 @@ TSmallVector<llvm::DILineInfo> TCodeSymbolizer::Symbolize(TStringBuf moduleName,
     }
     auto inliningInfo = Y_LLVM_RAISE(Symbolizer_.symbolizeInlinedCode(
         LastSymbolizedModuleName_,
-        llvm::object::SectionedAddress{.Address = addr + offset}
+        llvm::object::SectionedAddress{.Address = offset + moduleOffset}
     ));
 
     TSmallVector<llvm::DILineInfo> result;

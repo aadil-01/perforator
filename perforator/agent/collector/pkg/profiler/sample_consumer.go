@@ -306,6 +306,9 @@ func (c *SampleConsumer) processUserSpaceLocation(ctx context.Context, loc *prof
 			// This logic is broken for binaries with multiple executable sections (e.g. BOLT-ed binaries),
 			// as the offset seems to always become zero for any but first executable mapping.
 			// TODO : PERFORATOR-560
+			// This only works for binaries with a single executable segment and FirstPhdr.Offset == 0
+			// mapping.Begin - mapping.BaseAddress is ELF vaddr of the mapping.
+			// Conversion from ELF vaddr to ELF offset is done by subtracting corresponding phdr.Vaddr and adding phdr.Off
 			offset = mapping.Begin - mapping.BaseAddress - mapping.BuildInfo.FirstPhdr.Vaddr
 		}
 
@@ -529,7 +532,7 @@ func (c *SampleConsumer) resolveUprobe(ctx context.Context) *uprobe.UprobeInfo {
 	}
 
 	return c.p.bpf.UprobeRegistry().ResolveUprobe(uprobe.Key{
-		Offset:  topStackIP - mapping.Begin + uint64(mapping.Offset),
+		Offset:  topStackIP - mapping.Begin + mapping.Offset,
 		BuildID: mapping.BuildInfo.BuildID,
 	})
 }

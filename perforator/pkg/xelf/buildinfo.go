@@ -2,6 +2,7 @@ package xelf
 
 import (
 	"debug/elf"
+	"errors"
 	"io"
 	"strings"
 )
@@ -11,7 +12,7 @@ import (
 type BuildInfo struct {
 	BuildID      string
 	LoadBias     uint64
-	FirstPhdr    *elf.Prog
+	FirstPhdr    *elf.ProgHeader
 	HasDebugInfo bool
 }
 
@@ -31,15 +32,22 @@ func ReadBuildInfo(r io.ReaderAt) (*BuildInfo, error) {
 		return nil, err
 	}
 
-	bi.LoadBias, err = parseLoadBias(f)
+	phdr, err := parseFirstExecutableLoadablePhdr(f)
 	if err != nil {
 		return nil, err
 	}
 
-	bi.FirstPhdr, err = parseFirstPhdrInfo(f)
-	if err != nil {
-		return nil, err
+	if phdr != nil {
+		// See https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html
+		// "Otherwise, p_align should be a positive, integral power of 2, and p_vaddr should equal p_offset, modulo p_align"
+		if phdr.Align > 1 && phdr.Vaddr%phdr.Align != phdr.Off%phdr.Align {
+			return nil, errors.New("program header alignment invariant is violated")
+		}
+
+		bi.LoadBias = calculateLoadBias(phdr)
 	}
+
+	bi.FirstPhdr = parseFirstLoadablePhdrInfo(f)
 
 	bi.HasDebugInfo, err = hasDebugInfo(f)
 	if err != nil {
@@ -49,40 +57,48 @@ func ReadBuildInfo(r io.ReaderAt) (*BuildInfo, error) {
 	return &bi, nil
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-func parseLoadBias(f *elf.File) (uint64, error) {
-	for _, prog := range f.Progs {
-		if prog.Type != elf.PT_LOAD {
-			continue
-		}
-
-		if prog.Flags&elf.PF_X != elf.PF_X {
-			continue
-		}
-
-		if prog.Align <= 1 {
-			return prog.Vaddr, nil
-		}
-
-		// See https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html.
-		// In position independent executables, p_vaddr does not have to be aligned.
-		return prog.Vaddr & ^(prog.Align - 1), nil
-	}
-
-	return 0, nil
+func isLoadablePhdr(p *elf.Prog) bool {
+	return p.Type == elf.PT_LOAD
 }
 
-func parseFirstPhdrInfo(f *elf.File) (prog *elf.Prog, err error) {
+func isExecutablePhdr(p *elf.Prog) bool {
+	return p.Flags&elf.PF_X == elf.PF_X
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+func calculateLoadBias(firstExecutableLoadablePhdr *elf.ProgHeader) uint64 {
+	if firstExecutableLoadablePhdr == nil {
+		return 0
+	}
+
+	return firstExecutableLoadablePhdr.Vaddr & ^(firstExecutableLoadablePhdr.Align - 1)
+}
+
+func parseFirstExecutableLoadablePhdr(f *elf.File) (*elf.ProgHeader, error) {
 	for _, p := range f.Progs {
-		if p.Type != elf.PT_LOAD {
+		if p.Filesz == 0 {
 			continue
 		}
 
-		return p, nil
+		if isLoadablePhdr(p) && isExecutablePhdr(p) {
+			return &p.ProgHeader, nil
+		}
 	}
 
 	return nil, nil
+}
+
+func parseFirstLoadablePhdrInfo(f *elf.File) *elf.ProgHeader {
+	for _, p := range f.Progs {
+		if !isLoadablePhdr(p) {
+			continue
+		}
+
+		return &p.ProgHeader
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

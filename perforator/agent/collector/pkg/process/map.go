@@ -3,6 +3,7 @@ package process
 import (
 	"context"
 	eb "encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"math/bits"
@@ -55,11 +56,12 @@ type ProcessRegistry struct {
 }
 
 type processRegistryMetrics struct {
-	mappingsDiscovered           metrics.Counter
-	mappingsWithoutBuildID       metrics.Counter
-	mappingsJitted               metrics.Counter
-	mappingsFailedScheduleUpload metrics.Counter
-	mappingsFailedNameToHandleAt metrics.Counter
+	mappingsDiscovered                        metrics.Counter
+	mappingsWithoutBuildID                    metrics.Counter
+	mappingsJitted                            metrics.Counter
+	mappingsFailedScheduleUpload              metrics.Counter
+	mappingsFailedNameToHandleAt              metrics.Counter
+	mappingsLowestLoadAddressLessThanLoadBias metrics.Counter
 }
 
 type processMap struct {
@@ -162,11 +164,12 @@ func NewProcessRegistry(
 		uploader:   uploader,
 		mounts:     mounts,
 		metrics: processRegistryMetrics{
-			mappingsDiscovered:           m.WithTags(map[string]string{"kind": "discovered"}).Counter("mappings.count"),
-			mappingsWithoutBuildID:       m.WithTags(map[string]string{"kind": "nobuildid"}).Counter("mappings.count"),
-			mappingsJitted:               m.WithTags(map[string]string{"kind": "jitted"}).Counter("mappings.count"),
-			mappingsFailedScheduleUpload: m.WithTags(map[string]string{"kind": "failed_schedule_upload"}).Counter("mappings.count"),
-			mappingsFailedNameToHandleAt: m.WithTags(map[string]string{"kind": "failed_name_to_handle_at"}).Counter("mappings.count"),
+			mappingsDiscovered:                        m.WithTags(map[string]string{"kind": "discovered"}).Counter("mappings.count"),
+			mappingsWithoutBuildID:                    m.WithTags(map[string]string{"kind": "nobuildid"}).Counter("mappings.count"),
+			mappingsJitted:                            m.WithTags(map[string]string{"kind": "jitted"}).Counter("mappings.count"),
+			mappingsFailedScheduleUpload:              m.WithTags(map[string]string{"kind": "failed_schedule_upload"}).Counter("mappings.count"),
+			mappingsFailedNameToHandleAt:              m.WithTags(map[string]string{"kind": "failed_name_to_handle_at"}).Counter("mappings.count"),
+			mappingsLowestLoadAddressLessThanLoadBias: m.WithTags(map[string]string{"kind": "lowest_load_address_less_than_load_bias"}).Counter("mappings.count"),
 		},
 		processScanner: processScanner,
 		listeners:      listeners,
@@ -422,11 +425,12 @@ func (r *ProcessRegistry) runHandler(ctx context.Context) error {
 
 func (r *ProcessRegistry) handleProcess(ctx context.Context, proc *processInfo) error {
 	a := processAnalyzer{
-		reg:         r,
-		proc:        proc,
-		log:         r.log.With(log.UInt32("pid", uint32(proc.id))),
-		uploader:    r.uploader,
-		exemappings: make([]*dso.Mapping, 0, 4),
+		reg:                              r,
+		proc:                             proc,
+		log:                              r.log.With(log.UInt32("pid", uint32(proc.id))),
+		uploader:                         r.uploader,
+		exemappings:                      make([]*dso.Mapping, 0, 4),
+		buildIDToLowestExecutableAddress: make(map[string]uint64),
 	}
 	return a.run(ctx)
 }
@@ -437,6 +441,11 @@ type processAnalyzer struct {
 	uploader    *upload.Scheduler
 	log         xlog.Logger
 	exemappings []*dso.Mapping
+	// This is used to calculate the base address for executable mappings.
+	// Single binary can be mapped into multiple executable mappings and
+	// we calculate base address according to the lowest mapped executable VMA.
+	// Check https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html for base address information.
+	buildIDToLowestExecutableAddress map[string]uint64
 }
 
 func (a *processAnalyzer) run(ctx context.Context) error {
@@ -496,6 +505,15 @@ func (a *processAnalyzer) loadMaps(ctx context.Context) error {
 
 		return nil
 	})
+}
+
+func (a *processAnalyzer) getOrInsertLowestExecutableAddress(buildID string, vaddr uint64) uint64 {
+	if lowestExecutableAddress, ok := a.buildIDToLowestExecutableAddress[buildID]; ok {
+		return lowestExecutableAddress
+	}
+
+	a.buildIDToLowestExecutableAddress[buildID] = vaddr
+	return vaddr
 }
 
 func (a *processAnalyzer) processMapping(ctx context.Context, m *procfs.Mapping) error {
@@ -565,10 +583,33 @@ func (a *processAnalyzer) processMapping(ctx context.Context, m *procfs.Mapping)
 		a.reg.metrics.mappingsWithoutBuildID.Inc()
 	}
 
+	lowestExecutableAddress := mapping.Begin
+	if buildid != "" {
+		lowestExecutableAddress = a.getOrInsertLowestExecutableAddress(buildid, mapping.Begin)
+	}
+
 	mapping.BuildInfo = buildinfo
-	mapping.BaseAddress = mapping.Begin - buildinfo.LoadBias
+
 	l := a.log.With(log.String("path", mapping.Path), log.String("buildid", buildid))
-	l.Debug(ctx, "Found mapping build id", log.Any("buildinfo", mapping.BuildInfo), log.UInt64("baseaddr", mapping.BaseAddress))
+	if lowestExecutableAddress < buildinfo.LoadBias {
+		l.Debug(
+			ctx,
+			"Lowest load address is less than load bias",
+			log.UInt64("lowest_load_address", lowestExecutableAddress),
+			log.UInt64("load_bias", buildinfo.LoadBias),
+		)
+		a.reg.metrics.mappingsLowestLoadAddressLessThanLoadBias.Inc()
+		return errors.New("lowest load address is less than load bias")
+	}
+	mapping.BaseAddress = lowestExecutableAddress - buildinfo.LoadBias
+
+	l.Debug(
+		ctx,
+		"Found mapping build id",
+		log.Any("buildinfo", mapping.BuildInfo),
+		log.UInt64("baseaddr", mapping.BaseAddress),
+		log.UInt64("lowest_executable_address", lowestExecutableAddress),
+	)
 
 	handle, err := binary.Seal()
 	if err != nil {
