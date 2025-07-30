@@ -154,6 +154,10 @@ const readFormat = (format: RenderFormat | undefined) => {
         return 'RawProfile';
     }
 
+    if ('TextProfile' in format) {
+        return 'TextProfile';
+    }
+
     return 'Unknown format';
 };
 

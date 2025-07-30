@@ -15,6 +15,8 @@ import { useTypedQuery } from 'src/utils/query';
 
 import { Visualisation } from '../Visualisation/Visualisation';
 
+import { useFetchResult } from './useFetchResult';
+
 
 export type SupportedRenderFormats = 'Flamegraph' | 'JSONFlamegraph'
 
@@ -32,38 +34,29 @@ export const TaskFlamegraph: React.FC<TaskFlamegraphProps> = (props) => {
     const theme = useThemeType();
     const { userSettings } = useUserSettings();
 
-
-    const [profileData, setProfileData] = React.useState<ProfileData | undefined>();
-    const [error, setError] = React.useState<Error | undefined>();
     const [getQuery] = useTypedQuery<QueryKeys>();
     const tab = getQuery('tab') ?? 'flame' as Tab;
     const pageName = tab === 'flame' ? 'task-flamegraph' : 'top-table';
 
-    const getProfileData = async () => {
-
-        const fetchingStart = performance.now();
-        const req = await fetch(props.url);
-        const fetchingFinish = performance.now();
-
-        // eslint-disable-next-line no-console
-        console.log('Fetched data in', fetchingFinish - fetchingStart, 'ms');
+    const { data: profileData, error } = useFetchResult<ProfileData>({ url: props.url, extractData: async(req) => {
         if (props.format === 'JSONFlamegraph') {
             const data = await parseFromWebStream(req.body!);
-            setProfileData({ rows: data.rows.filter(Boolean), stringTable: data.stringTable, meta: data.meta });
+            return ({ rows: data.rows.filter(Boolean), stringTable: data.stringTable, meta: data.meta });
         } else if (props.format === 'Flamegraph') {
             const data = await req.text();
-            setProfileData(uiFactory()?.parseLegacyFormat?.(data));
+            return (uiFactory()?.parseLegacyFormat?.(data)!);
+        } else {
+            return { rows: [], stringTable: [], meta: {} };
         }
-        uiFactory().rum()?.finishDataLoading?.(pageName);
-    };
-
-    const getProfileDataWithCatch = async () => {
-        try {
-            await getProfileData();
-        } catch (e) {
-            setError(e as Error);
+    },
+    onFinishDataLoading: () => uiFactory().rum()?.finishDataLoading?.(pageName),
+    onStartRequest: () => {
+        if (!isMounted.current) {
+            uiFactory().rum()?.makeSpaSubPage?.(pageName, undefined, undefined, { flamegraphFormat: props.format });
+            isMounted.current = true;
         }
-    };
+    },
+    });
 
     const prerenderedNewData = React.useMemo(() => {
         if (profileData) {
@@ -80,14 +73,6 @@ export const TaskFlamegraph: React.FC<TaskFlamegraphProps> = (props) => {
 
     const loading = !prerenderedNewData;
 
-    React.useEffect(() => {
-        if (!isMounted.current) {
-            uiFactory().rum()?.makeSpaSubPage?.(pageName, undefined, undefined, { flamegraphFormat: props.format });
-            isMounted.current = true;
-            getProfileDataWithCatch();
-
-        }
-    });
 
     if (error) {
         return <ErrorPanel message={error.message}/>;

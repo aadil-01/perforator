@@ -9,6 +9,7 @@ import { getFormat, isDiffTaskResult } from 'src/utils/renderingFormat';
 import { ErrorPanel } from '../ErrorPanel/ErrorPanel';
 
 import { TaskFlamegraph } from './TaskFlamegraph/TaskFlamegraph';
+import { TextProfile } from './TextProfile/TextProfile';
 
 import './TaskReport.scss';
 
@@ -49,6 +50,10 @@ export const TaskReport: React.FC<TaskReportProps> = props => {
 
         if (format === 'Flamegraph' && !uiFactory().parseLegacyFormat) {
             return <IFrameReport url={url}/>;
+        }
+
+        if (format === 'TextProfile') {
+            return <TextProfile url={url} />;
         }
 
         if (!format) {
@@ -96,3 +101,4 @@ export const IFrameReport: React.FC<IFrameReportProps> = ({ url }) => {
         </div>
     );
 };
+

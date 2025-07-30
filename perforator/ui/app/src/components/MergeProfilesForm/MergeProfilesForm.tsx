@@ -105,14 +105,15 @@ export const MergeProfilesForm: React.FC<MergeProfilesFormProps> = props => {
         />
     );
 
-    const queryWithSelector = ({ raw }: {raw?: boolean} = {}) => ({
+    const queryWithSelector = ({ raw, text }: {raw?: boolean; text?: boolean} = {}) => ({
         ...query,
         selector: fixSelector(query.selector ?? tableSelector),
         rawProfile: raw ? 'true' : undefined,
+        format: text ? 'text' : undefined,
     } as ProfileTaskQuery);
 
-    const submitTask = async ({ raw }: {raw?: boolean} = {}) => {
-        const queryToSend = queryWithSelector({ raw });
+    const submitTask = async ({ raw, text }: {raw?: boolean; text?: boolean} = {}) => {
+        const queryToSend = queryWithSelector({ raw, text });
         if (!queryToSend.selector) {
             return;
         }
@@ -137,6 +138,8 @@ export const MergeProfilesForm: React.FC<MergeProfilesFormProps> = props => {
             </Button>
             <DropdownMenu popupProps={{ placement: 'bottom-end' }} items={[
                 { action: () => submitTask({ raw: true }), text: 'Merge into pprof' },
+                { action: () => submitTask({ text: true }), text: 'Merge into text format' },
+
             ]}/>
         </React.Fragment>
     );
