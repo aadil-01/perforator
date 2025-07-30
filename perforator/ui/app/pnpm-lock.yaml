@@ -24,8 +24,8 @@ importers:
         specifier: 2.5.5
         version: 2.5.5
       '@gravity-ui/illustrations':
-        specifier: 1.0.0
-        version: 1.0.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+        specifier: 2.1.0
+        version: 2.1.0(@gravity-ui/uikit@7.16.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@gravity-ui/navigation':
         specifier: 3.4.0
         version: 3.4.0(@bem-react/classname@1.6.0)(@gravity-ui/components@4.7.1(@gravity-ui/uikit@7.16.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(@gravity-ui/icons@2.15.0(react@18.3.1))(@gravity-ui/uikit@7.16.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -840,11 +840,12 @@ packages:
       react:
         optional: true
 
-  '@gravity-ui/illustrations@1.0.0':
-    resolution: {integrity: sha512-2fshoiBnoD9zEoRxTwRsEKWsiKV+ANej3AvumF80bL4VDuh72/2FT+z5ImyAQwnH99BZr0U72umueX2n8wpY9Q==}
+  '@gravity-ui/illustrations@2.1.0':
+    resolution: {integrity: sha512-IEtfGozorjzIrRjp9jc7mRxmfQKxHUfQWa3VLJ6bNUqfS2qx4JfX7u22w9fnbMJjvmlr/kIfqzr/Qm6VcIoBwA==}
     peerDependencies:
-      react: ^18.2.0
-      react-dom: ^18.2.0
+      '@gravity-ui/uikit': ^6.0.0 || ^7.0.0
+      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
 
   '@gravity-ui/navigation@3.4.0':
     resolution: {integrity: sha512-YfFPtJz3HsemW27ypsF3/iQlVeCBgwNI1DxOcTF7VtqIV3YR6hXgesb8dK6iPwhg8OJxCog+sI9YO3xdCw+sIQ==}
@@ -4358,8 +4359,9 @@ snapshots:
     optionalDependencies:
       react: 18.3.1
 
-  '@gravity-ui/illustrations@1.0.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
+  '@gravity-ui/illustrations@2.1.0(@gravity-ui/uikit@7.16.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)':
     dependencies:
+      '@gravity-ui/uikit': 7.16.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
 
