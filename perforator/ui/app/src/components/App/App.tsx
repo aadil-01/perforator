@@ -1,5 +1,8 @@
 import React from 'react';
 
+import { ToasterComponent, ToasterProvider } from '@gravity-ui/uikit';
+import { toaster } from '@gravity-ui/uikit/toaster-singleton';
+
 import { RouterProvider } from 'src/providers/RouterProvider/RouterProvider';
 import { ThemeProvider } from 'src/providers/ThemeProvider/ThemeProvider';
 import { UserSettingsProvider } from 'src/providers/UserSettingsProvider/UserSettingsProvider';
@@ -22,7 +25,10 @@ export const App: React.FC<{}> = () => {
     return (
         <UserSettingsProvider>
             <ThemeProvider>
-                <AppImpl />
+                <ToasterProvider toaster={toaster}>
+                    <AppImpl />
+                    <ToasterComponent/>
+                </ToasterProvider>
             </ThemeProvider>
         </UserSettingsProvider>
     );
