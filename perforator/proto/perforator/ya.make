@@ -20,6 +20,10 @@ GO_GRPC_GATEWAY_V2_SRCS(
     task_service.proto
 )
 
+PEERDIR(
+    perforator/proto/profile
+)
+
 IF (NOT GO_PROTO)
     PEERDIR(
         contrib/libs/googleapis-common-protos

@@ -3,6 +3,7 @@ syntax = "proto3";
 import "google/api/annotations.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+import "perforator/proto/profile/merge_options.proto";
 
 package NPerforator.NProto;
 
@@ -219,6 +220,12 @@ message MergeProfilesRequest {
     // Merging thousands of profiles is expensive.
     // Set MaxSamples to control sample rate.
     uint32 MaxSamples = 3 [deprecated=true];
+
+    // Controls how different profiles are merged together.
+    optional NProfile.MergeOptions MergeOptions = 4;
+
+    // Experimental options. Use at your own risk.
+    optional MergeExperimentalOptions Experimental = 5;
 }
 
 message MergeProfilesResponse {
@@ -237,6 +244,11 @@ message MergeProfilesResponse {
     // Can be used to estimate quality of the profile.
     // See perforator/pkg/profile/quality.
     ProfileStatistics Statistics = 4;
+}
+
+message MergeExperimentalOptions {
+    // Enable new fast profile merger.
+    bool EnableNewProfileMerger = 1;
 }
 
 message ProfileStatistics {
@@ -347,7 +359,6 @@ message PGOProfileFormat {
 ////////////////////////////////////////////////////////////////////////////////
 
 message DiffProfilesRequest {
-
     // Diff (new, right) profile selector.
     ProfileQuery DiffQuery = 1;
 
@@ -362,6 +373,12 @@ message DiffProfilesRequest {
     FlamegraphOptions FlamegraphOptions = 4 [deprecated=true];
 
     RenderFormat RenderFormat = 5;
+
+    // Controls how different profiles are merged together.
+    optional NProfile.MergeOptions MergeOptions = 6;
+
+    // Experimental options. Use at your own risk.
+    optional MergeExperimentalOptions Experimental = 7;
 }
 
 message DiffProfilesResponse {
@@ -464,17 +481,16 @@ message FlamegraphOptions {
 }
 
 message TextProfileOptions {
-
     // Maximum number of samples to render. 0 means no limit.
     optional uint32 MaxSamples = 1;
-    
+
     // Show line numbers, if available
     optional bool ShowLineNumbers = 4;
-    
+
     // Show file names after function names.
     // Enabled by default.
     optional bool ShowFileNames = 5;
-    
+
     // How to display raw addresses in the output.
     optional AddressRenderPolicy RenderAddresses = 7;
 }
@@ -487,6 +503,9 @@ message LLVMPGOProfileOptions {
     // Empty
 }
 
+message ProtoProfileOptions {
+    // Empty
+}
 
 message PostprocessOptions {
     optional bool MergePythonAndNativeStacks = 1;
@@ -501,7 +520,7 @@ message RenderFormat {
         // Build flamegraph.
         FlamegraphOptions Flamegraph = 2;
 
-        // Return raw profile, potentiatlly symbolized.
+        // Return raw profile, potentially symbolized.
         RawProfileOptions RawProfile = 3;
 
         // Return profile suitable for the LLVM PGO.
@@ -520,6 +539,10 @@ message RenderFormat {
 
         // Render profile as human-readable text.
         TextProfileOptions TextProfile = 9;
+
+        // Return proto profile, potentially symbolized.
+        // The profile schema is defined at perforator/proto/profile.
+        ProtoProfileOptions ProtoProfile = 10;
     }
 }
 
