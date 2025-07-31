@@ -476,7 +476,8 @@ proxy:
     useCustom: false
     # Custom config content. This is passed into tpl function which allows templating from values.
     custom: ''
-  # URL prefix to retrive finished task with, for example:"https://example.com/static/results/" in case of enabled web, or https://example.com/bucketname/ in case of direct use of s3.
+  # URL prefix to retrive finished task with, in most cases when web service is enabled, configuring web.host is sufficient and this field can be left empty. 
+  # For installations with web service enabled, use format "https://<your.domain>/static/results/", for installations without web service, use the direct storage URL (e.g., "https://storage.example.com/bucket-name/").
   url_prefix:
   # Number of pods to deploy.
   replicas: 1
@@ -611,6 +612,8 @@ proxy:
 web:
   # Proxy does not support ui, if web server is disabled you must support ui with other means.
   enabled: true
+  # Host where the UI is served, used to construct UI links. Example: "https://example.com"
+  host:
   config:
     #Create a new user provided config for the proxy.
     useCustom: false

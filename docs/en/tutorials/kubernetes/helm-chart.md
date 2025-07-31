@@ -58,8 +58,8 @@ databases:
     accessKey: "perforator"
     secretKey: "perforator"
 
-proxy:
-  url_prefix: "http://localhost:8080/static/results/"
+web:
+  host: "http://localhost:8080"
 
 testing:
   enableTestingDatabases: true
