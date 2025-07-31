@@ -57,6 +57,9 @@ binary_provider:
 rendered_profiles:
   url_prefix: {{ include "perforator.proxy.url_prefix" . | quote }}
   bucket: {{ .Values.databases.s3.buckets.taskResults }}
+profile_blacklist:
+  profiler_version:
+    - "13641102"
 microscope:
   throttle:
     microscopes_per_user_limit: 20
