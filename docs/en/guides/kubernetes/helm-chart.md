@@ -94,7 +94,7 @@ helm install perforator-release -n perforator perforator/perforator -f my-values
 To access the Perforator UI, configure port forwarding to the local machine:
 
 ```console
-kubectl port-forward svc/perforator-release-perforator-web-service -n perforator 8080:80
+kubectl port-forward svc/perforator-release-web-service -n perforator 8080:80
 ```
 Then open `http://localhost:8080` in your browser
 
