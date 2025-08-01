@@ -4,6 +4,7 @@
 import type React from 'react';
 
 import type { SubheaderMenuItem } from '@gravity-ui/navigation';
+import type { ThemeType } from '@gravity-ui/uikit';
 
 import type { QueryInput } from 'src/components/MergeProfilesForm/QueryInput';
 import { QUERY_INPUTS } from 'src/components/MergeProfilesForm/queryInputs';
@@ -53,6 +54,8 @@ export class UIFactory {
     useSubheaderItems = (asideRef: React.RefObject<HTMLDivElement>): SubheaderMenuItem[] => [];
 
     queryInputs = (): QueryInput[] => QUERY_INPUTS;
+
+    setExternalTheme = (_theme: ThemeType) => {};
 
     rum = (): Rum => fakeRum;
     logError: SendError = (error, additional, level) => console.error(error, additional, level);
