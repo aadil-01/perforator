@@ -36,7 +36,7 @@ type Storage interface {
 
 	SelectProfiles(
 		ctx context.Context,
-		filters *meta.ProfileQuery,
+		query *meta.ProfileQuery,
 	) ([]*meta.ProfileMetadata, error)
 
 	FetchProfile(
