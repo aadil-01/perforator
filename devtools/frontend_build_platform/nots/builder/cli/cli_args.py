@@ -196,6 +196,9 @@ def parse_args(parser, custom_args: list[str] = None) -> AllOptions:
     bindir = os.path.join(args.arcadia_build_root, args.moddir)
     setattr(args, 'bindir', bindir)
 
+    if os.environ.get('NOTS_BUILDER_VERBOSE', '').lower() in {'yes', 'on', 'true', '1'}:
+        setattr(args, 'verbose', True)
+
     node_modules_bundle = (
         os.path.join(bindir, pm_constants.NODE_MODULES_WORKSPACE_BUNDLE_FILENAME) if args.nm_bundle else False
     )
