@@ -28,8 +28,9 @@ def prepare_deps(args: PrepareDepsOptions):
         script_path=args.pm_script,
     )
 
-    pm.build_workspace(args.tarballs_store)
-    _copy_tarballs(args, pm.load_lockfile_from_dir(args.curdir))
+    pm.build_workspace(args.tarballs_store, args.local_cli)
+    if not args.local_cli:
+        _copy_tarballs(args, pm.load_lockfile_from_dir(args.curdir))
 
 
 def _get_resource_path(args: PrepareDepsOptions, pkg) -> str:

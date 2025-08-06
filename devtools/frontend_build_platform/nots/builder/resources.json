@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-08-04T17:36:12Z",
+    "created": "2025-08-06T08:48:59.106Z",
     "pr": {
-      "id": 9584700,
+      "id": 9607345,
       "author": "baymer",
-      "summary": "FBP-2387: nots/builder: Добавить возможность задать verbose с помощью env-переменной"
+      "summary": "FBP-2400: nots/builder: Скачивать зависимости с помощью pnpm всегда, кроме distbuild"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9371691008"
+      "uri": "sbr:9385806324"
     },
     "darwin-arm64": {
-      "uri": "sbr:9371687935"
+      "uri": "sbr:9385804050"
     },
     "linux": {
-      "uri": "sbr:9371695068"
+      "uri": "sbr:9385811075"
     },
     "linux-aarch64": {
-      "uri": "sbr:9371693060"
+      "uri": "sbr:9385808477"
     }
   }
 }
