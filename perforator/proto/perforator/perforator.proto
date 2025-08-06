@@ -315,6 +315,9 @@ message PGOMeta {
 
     // BuildID, guessed from the samples, for which the resulting profile is generated.
     string GuessedBuildID = 9;
+
+    // Count of accounted profiles per service (usable in case of merging multiple services)
+    map<string, uint64> ProfilesByServiceCount = 10;
 }
 
 message GeneratePGOProfileRequest {

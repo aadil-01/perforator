@@ -403,6 +403,7 @@ func fetchPGOProfile(args []string) error {
 		log.UInt64("BranchCountMapSize", PGOMeta.GetBranchCountMapSize()),
 		log.UInt64("RangeCountMapsize", PGOMeta.GetRangeCountMapSize()),
 		log.Float32("TakenBranchesToExecutableBytesRatio", PGOMeta.GetTakenBranchesToExecutableBytesRatio()),
+		log.Any("ProfilesByServiceCount", PGOMeta.GetProfilesByServiceCount()),
 	)
 
 	err = sink.Store(profile)

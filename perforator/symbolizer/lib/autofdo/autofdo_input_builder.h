@@ -62,6 +62,8 @@ struct TAutofdoInputData final {
         ui64 TotalSamples{0};
         ui64 BogusLbrEntries{0};
 
+        absl::flat_hash_map<TString, ui64> ProfilesCountByService;
+
         TMetadata& operator+=(const TMetadata& other);
     };
 
@@ -90,9 +92,9 @@ public:
     explicit TInputBuilder(const std::string& buildId);
 
     // Parses the raw profile bytes and adds the profile into builder.
-    void AddProfile(TArrayRef<const char> profileBytes);
+    void AddProfile(std::string_view serviceName, TArrayRef<const char> profileBytes);
     // Adds the profile into builder.
-    void AddProfile(const NPerforator::NProto::NPProf::ProfileLight& profile);
+    void AddProfile(std::string_view serviceName, const NPerforator::NProto::NPProf::ProfileLight& profile);
 
     // Add the pre-aggregated data into builder.
     void AddData(TAutofdoInputData&& otherData);

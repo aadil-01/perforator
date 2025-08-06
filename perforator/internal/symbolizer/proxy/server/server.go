@@ -788,7 +788,7 @@ func (s *PerforatorServer) processLBRProfiles(
 		builderIndex := uint64(i)
 		g.Go(func() error {
 			for j := builderIndex; j < uint64(len(rawProfiles)); j += PGODegreeOfParallelism {
-				err := builder.AddProfile(builderIndex, rawProfiles[j].data)
+				err := builder.AddProfile(builderIndex, rawProfiles[j].meta.Service, rawProfiles[j].data)
 				if err != nil {
 					return err
 				}
@@ -914,6 +914,7 @@ func (s *PerforatorServer) doGeneratePGOProfile(
 		RangeCountMapSize:                   autofdoMetadata.RangeCountMapSize,
 		AddressCountMapSize:                 autofdoMetadata.AddressCountMapSize,
 		GuessedBuildID:                      autofdoInput.BuildID,
+		ProfilesByServiceCount:              autofdoMetadata.ProfilesCountByService,
 	}, nil
 }
 

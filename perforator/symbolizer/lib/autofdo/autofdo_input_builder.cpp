@@ -240,6 +240,10 @@ TAutofdoInputData::TMetadata& TAutofdoInputData::TMetadata::operator+=(const TMe
     TotalSamples += other.TotalSamples;
     BogusLbrEntries += other.BogusLbrEntries;
 
+    for (const auto& [service, count] : other.ProfilesCountByService) {
+        ProfilesCountByService[service] += count;
+    }
+
     return *this;
 }
 
@@ -247,7 +251,7 @@ TAutofdoInputData::TMetadata& TAutofdoInputData::TMetadata::operator+=(const TMe
 
 TInputBuilder::TInputBuilder(const std::string& buildId) : BuildId_{buildId} {}
 
-void TInputBuilder::AddProfile(TArrayRef<const char> profileBytes) {
+void TInputBuilder::AddProfile(std::string_view serviceName, TArrayRef<const char> profileBytes) {
     if (profileBytes.data() == nullptr || profileBytes.size() == 0) {
         return;
     }
@@ -257,10 +261,10 @@ void TInputBuilder::AddProfile(TArrayRef<const char> profileBytes) {
         return;
     }
 
-    AddProfile(profile);
+    AddProfile(serviceName, profile);
 }
 
-void TInputBuilder::AddProfile(const TPerforatorProfile& profile) {
+void TInputBuilder::AddProfile(std::string_view serviceName, const TPerforatorProfile& profile) {
     const auto locationById = PrepareProfileLocations(profile);
     const auto mappingById = PrepareProfileMappings(profile);
     const auto mainMappingIdOpt = PrepareMainMappingId(profile, BuildId_);
@@ -341,6 +345,7 @@ void TInputBuilder::AddProfile(const TPerforatorProfile& profile) {
     }
 
     ++Data_.Meta.TotalProfiles;
+    ++Data_.Meta.ProfilesCountByService[TString{serviceName}];
 }
 
 void TInputBuilder::AddData(TAutofdoInputData&& otherData) {

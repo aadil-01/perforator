@@ -14,9 +14,11 @@
 
 namespace {
 
+constexpr std::string_view kPlaceholderServiceName{"serviceName"};
+
 void ProcessProfile(const NPerforator::NProto::NPProf::ProfileLight& profile, const std::string& buildId) {
     NPerforator::NAutofdo::TInputBuilder builder{buildId};
-    builder.AddProfile(profile);
+    builder.AddProfile(kPlaceholderServiceName, profile);
 
     const auto autofdoInputData = std::move(builder).Finalize();
     const auto autofdoInput = NPerforator::NAutofdo::SerializeAutofdoInput(autofdoInputData);
