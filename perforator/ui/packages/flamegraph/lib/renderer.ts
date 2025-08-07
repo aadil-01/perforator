@@ -115,7 +115,7 @@ export class FlamegraphOffseter {
     fillFramesWindow([hmax, imax]: Coordinate): FramesWindow {
             const res: Record<number, Interval> = [];
             let nextParentIndex = imax;
-    
+
             for (let h = Math.min(hmax, this.rows.length - 1); h >= 0; h--) {
                 const row = this.rows[h];
                 res[h] = [nextParentIndex, nextParentIndex];
@@ -123,7 +123,7 @@ export class FlamegraphOffseter {
                 // we do not care about it because it will not be assigned anywhere else
                 nextParentIndex = row[nextParentIndex].parentIndex;
             }
-    
+
             return res;
         }
     createOffsetKeeper(h: number) {
@@ -312,7 +312,7 @@ export class FlamegraphOffseter {
         const root = this.rows[initialH][initialI];
         this.widthRatio = (this.getEvents(root) - (root.omittedEventCount ?? 0)) / canvasWidth!;
         this.minVisibleEv = minVisibleWidth * this.widthRatio;
-        
+
         for (let h = 0; h < this.rows.length; h++) {
             const shouldDrawFrame = this.createShouldDrawFrame(h);
             const updateOffsets = this.createOffsetKeeper(h);
@@ -538,7 +538,7 @@ export const renderFlamegraph: RenderFlamegraphType = (
     function drawLabel(text: string, x: number, y: number, w: number, opacity: string, color: string) {
         const dFragment = labelTemplate.content.cloneNode(true) as DocumentFragment;
         const node = dFragment.firstElementChild as HTMLDivElement;
-        node.firstElementChild!.textContent = text;
+        node.textContent = text;
         node.style.top = y + canvas.offsetTop + 'px';
         node.style.left = x + canvas.offsetLeft + 'px';
         node.style.width = w + 'px';

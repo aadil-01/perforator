@@ -86,9 +86,6 @@
     pointer-events: none;
     position: absolute;
     white-space: nowrap;
-}
-
-.flamegraph__label span {
     padding: 0 3px;
 }
 

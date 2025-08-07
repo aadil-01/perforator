@@ -252,10 +252,7 @@ export const Flamegraph: React.FC<FlamegraphProps> = ({ isDiff, theme, userSetti
                         <canvas className="flamegraph__canvas" />
                     </div>
                     <template className="flamegraph__label-template" dangerouslySetInnerHTML={{
-                        __html: `
-                    <div class="flamegraph__label">
-                        <span></span>
-                    </div>` }} />
+                        __html: `<div class="flamegraph__label"></div>` }} />
                     <div className="flamegraph__labels-container" />
                     <div className='flamegraph__highlight'>
                         <span />
