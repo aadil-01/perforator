@@ -61,7 +61,12 @@ export const Visualisation: React.FC<VisualisationProps> = ({ profileData, ...pr
             profileData,
             getState: getQuery,
             setState: setQuery,
-            onFinishRendering: () => uiFactory().rum()?.finishDataRendering?.('task-flamegraph'),
+            onFinishRendering: (opts) => {
+                uiFactory().rum()?.finishDataRendering?.('task-flamegraph');
+                if (opts?.delta && opts?.textNodesCount) {
+                    uiFactory().rum()?.sendDelta?.('flamegraph-render', opts.delta, { textNodesCount: opts.textNodesCount, exceededLimit: opts.exceededLimit });
+                }
+            },
             onSuccess: createSuccessToast,
             goToDefinitionHref: uiFactory().goToDefinitionHref,
             ...props,

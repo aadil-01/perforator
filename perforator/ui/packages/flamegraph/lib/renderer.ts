@@ -56,7 +56,7 @@ export type RenderFlamegraphOptions = {
     theme: 'dark' | 'light';
     isDiff: boolean;
     shortenFrameTexts: 'true' | 'false' | 'hover';
-    onFinishRendering?: () => void;
+    onFinishRendering?: (opts?: {textNodesCount: number, delta: number, exceededLimit: boolean}) => void;
     searchPattern: RegExp | string | null;
     reverse: boolean;
     keepOnlyFound: boolean;
@@ -593,6 +593,7 @@ export const renderFlamegraph: RenderFlamegraphType = (
         }
 
         const newLabels: HTMLDivElement[] = [];
+        let labelCount = 0;
 
 
         const marked: Record<number | string, number> = {};
@@ -660,7 +661,9 @@ export const renderFlamegraph: RenderFlamegraphType = (
                 c.fillStyle = color as string;
                 c.fillRect(node.x!, y, width, BLOCK_HEIGHT);
 
-                if (width > charWidth * 3 + 6 && newLabels.length < MAX_TEXT_LABELS) {
+                if (width > charWidth * 3 + 6) {
+                    labelCount++;
+                    if(newLabels.length < MAX_TEXT_LABELS){
 
                     const chars = Math.floor((width - 6) / charWidth);
                     const title = nodeTitle.length <= chars ? nodeTitle : nodeTitle.substring(0, chars - 1) + '…';
@@ -671,6 +674,7 @@ export const renderFlamegraph: RenderFlamegraphType = (
                     }
                     const label = drawLabel(title, node.x!, y, width, alpha ? '0.5' : '1', labelColor!);
                     newLabels.push(label);
+                }
                 }
 
 
@@ -708,6 +712,11 @@ export const renderFlamegraph: RenderFlamegraphType = (
                 break;
             }
         }
+
+        if(labelCount > MAX_TEXT_LABELS) {
+            console.log(`label count limit is ${MAX_TEXT_LABELS}, without it would have shown ${labelCount} labels`)
+        }
+
         labels?.replaceChildren(...newLabels);
 
         function templateTitle(eventCount: number, sampleCount: number) {
@@ -722,6 +731,7 @@ export const renderFlamegraph: RenderFlamegraphType = (
 
         renderSearch(totalMarked(), title, Boolean(opts?.pattern));
 
+        return {textNodesCount: labelCount}
 
     }
 
@@ -737,12 +747,13 @@ export const renderFlamegraph: RenderFlamegraphType = (
     function render(opts: RenderOpts) {
         const start = performance.now();
         const res = renderImpl(opts);
+        const finish = performance.now();
+        const delta = finish - start;
         if (firstRender) {
-            onFinishRendering?.()
+            onFinishRendering?.({textNodesCount: res.textNodesCount, delta, exceededLimit: res.textNodesCount > MAX_TEXT_LABELS})
             firstRender = false;
         }
-        const finish = performance.now();
-        console.log('Rendered flamegraph in', finish - start, 'ms');
+        console.log('Rendered flamegraph in', delta, 'ms');
         return res;
     }
 

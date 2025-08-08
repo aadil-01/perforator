@@ -12,7 +12,7 @@ import { cn } from '../../utils/cn';
 import type { ContextMenuProps, PopupData } from './ContextMenu';
 import { ContextMenu } from './ContextMenu';
 import { RegexpDialog } from '../RegexpDialog/RegexpDialog';
-import type { QueryKeys } from '../../renderer';
+import type { QueryKeys, RenderFlamegraphOptions } from '../../renderer';
 import { FlamegraphOffseter, renderFlamegraph as newFlame } from '../../renderer';
 import { readNodeStrings } from '../../read-string';
 
@@ -23,13 +23,12 @@ import { GetStateFromQuery, SetStateFromQuery } from '../../query-utils';
 
 const b = cn('flamegraph');
 
-export interface FlamegraphProps {
+export interface FlamegraphProps extends Pick<RenderFlamegraphOptions, 'onFinishRendering'> {
     isDiff: boolean;
     theme: 'light' | 'dark';
     userSettings: UserSettings;
     profileData: ProfileData | null;
     goToDefinitionHref: GoToDefinitionHref;
-    onFinishRendering?: () => void;
     onSuccess: ContextMenuProps['onSuccess']
     getState: GetStateFromQuery<QueryKeys>;
     setState: SetStateFromQuery<QueryKeys>;
