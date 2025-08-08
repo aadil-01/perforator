@@ -284,9 +284,15 @@ export class FlamegraphOffseter {
             const row = this.rows[h];
             for (let i = 0; i < row.length; i++) {
                 const node = row[i];
-                node.omittedEventCount = undefined;
-                node.omittedSampleCount = undefined;
-                node.omittedNode = false;
+                if(node.omittedEventCount) {
+                    node.omittedEventCount = undefined;
+                }
+                if(node.omittedSampleCount) {
+                    node.omittedSampleCount = undefined;
+                }
+                if(node.omittedNode) {
+                    node.omittedNode = false;
+                }
             }
         }
     }
