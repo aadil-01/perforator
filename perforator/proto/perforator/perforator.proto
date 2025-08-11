@@ -322,10 +322,14 @@ message PGOMeta {
 
 message GeneratePGOProfileRequest {
     // Service name (podset-id).
+    // Deprecated, use Query instead.
     string Service = 1;
 
     // The format to render aggregated data in (autofdo/bolt).
     PGOProfileFormat Format = 2;
+
+    // Optional. If specified, takes precedence over Service.
+    ProfileQuery Query = 3;
 }
 
 message GeneratePGOProfileResponse {

@@ -815,36 +815,9 @@ type autofdoInput struct {
 //go:noinline
 func (s *PerforatorServer) generateAutofdoInput(
 	ctx context.Context,
-	service string,
-	maxSamples uint32,
+	query *meta.ProfileQuery,
 	profilesToProcessTotalSizeLimit uint64,
 ) (autofdoInput, error) {
-	selector := fmt.Sprintf("{%s=\"%s\", %s=\"%s\"}",
-		profilequerylang.EventTypeLabel, sampletype.SampleTypeLbrStacks,
-		profilequerylang.ServiceLabel, service)
-
-	query, err := s.parseProfileQuery(&perforator.ProfileQuery{
-		Selector: selector,
-		TimeInterval: &perforator.TimeInterval{
-			// Given that we _guess_ the target buildID, it makes sense to look for
-			// somewhat recent profiles only.
-			From: timestamppb.New(time.Now().Add(-time.Hour * 24)),
-		},
-	})
-	if err != nil {
-		return autofdoInput{}, err
-	}
-	// Again, this increases the chance of guessing a buildID from the most recent release,
-	// instead of the previous one(s).
-	query.SortOrder = util.SortOrder{
-		Columns:    []string{profilequerylang.TimestampLabel},
-		Descending: true,
-	}
-	query.MaxSamples = 0
-	query.Pagination = util.Pagination{
-		Offset: 0,
-		Limit:  uint64(maxSamples),
-	}
 	rawProfiles, err := s.selectProfiles(ctx, query, &profilesToProcessTotalSizeLimit)
 	if err != nil {
 		return autofdoInput{}, err
@@ -869,12 +842,15 @@ func (s *PerforatorServer) generateAutofdoInput(
 
 func (s *PerforatorServer) doGeneratePGOProfile(
 	ctx context.Context,
-	service string,
+	query *meta.ProfileQuery,
 	format *perforator.PGOProfileFormat,
-	maxSamples uint32,
 	profilesToProcessTotalSizeLimit uint64,
 ) ([]byte, *perforator.PGOMeta, error) {
-	autofdoInput, err := s.generateAutofdoInput(ctx, service, maxSamples, profilesToProcessTotalSizeLimit)
+	autofdoInput, err := s.generateAutofdoInput(
+		ctx,
+		query,
+		profilesToProcessTotalSizeLimit,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1030,25 +1006,123 @@ func filterNoBlobProfiles(profiles []richProfile) (res []richProfile) {
 	return
 }
 
-func (s *PerforatorServer) GeneratePGOProfile(
-	ctx context.Context,
-	req *perforator.GeneratePGOProfileRequest,
-) (*perforator.GeneratePGOProfileResponse, error) {
-	if len(req.GetService()) == 0 {
-		return nil, fmt.Errorf("empty \"service\"")
-	}
-
+func (s *PerforatorServer) constructPGOProfilesQuery(req *perforator.GeneratePGOProfileRequest) (
+	*meta.ProfileQuery,
+	error,
+) {
 	// We deal with large binaries and we want A LOT of lbr-profiles
 	// for better resulting sPGO-profile quality. This is basically a
 	// "number big enough".
 	const maxSamples = uint32(5000)
+
+	// Given that we _guess_ the target buildID, it makes sense to look for
+	// somewhat recent profiles only.
+	defaultTimeIntervalStart := time.Now().Add(-time.Hour * 24)
+
+	query, err := func() (*meta.ProfileQuery, error) {
+		// Old-fashioned request came in, which only contains 'service',
+		// nothing else is specified.
+		if req.GetQuery() == nil {
+			if len(req.GetService()) == 0 {
+				return nil, fmt.Errorf("empty 'service' in request")
+			}
+
+			selector := fmt.Sprintf("{%s=\"%s\", %s=\"%s\"}",
+				profilequerylang.EventTypeLabel, sampletype.SampleTypeLbrStacks,
+				profilequerylang.ServiceLabel, req.GetService())
+
+			return s.parseProfileQuery(&perforator.ProfileQuery{
+				Selector: selector,
+				TimeInterval: &perforator.TimeInterval{
+					From: timestamppb.New(defaultTimeIntervalStart),
+				},
+			})
+		} else {
+			// A more modern way to request a PGO-profile, could request profiles from whatever
+			// the selector could describe.
+			query, err := s.parseProfileQuery(&perforator.ProfileQuery{
+				Selector: req.GetQuery().GetSelector(),
+			})
+			if err != nil {
+				return nil, err
+			}
+
+			// Now, ensure that selector
+			// a) limits profiles to sampletype.SampleTypeLbrStacks event_type
+			// b) has a time interval
+
+			// Set the event_type matcher
+			query.Selector.Matchers = slices.DeleteFunc(query.Selector.Matchers, func(matcher *querylang.Matcher) bool {
+				return matcher.Field == profilequerylang.EventTypeLabel
+			})
+			query.Selector.Matchers = append(query.Selector.Matchers, profilequerylang.BuildMatcher(
+				profilequerylang.EventTypeLabel,
+				querylang.AND,
+				querylang.Condition{
+					Operator: operator.Eq,
+				},
+				[]string{sampletype.SampleTypeLbrStacks},
+			))
+			// Ensure TimeInterval is specified
+			timeInterval, err := profilequerylang.ParseTimeInterval(query.Selector)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse selector time interval: %w", err)
+			}
+			if timeInterval.To == nil && timeInterval.From == nil {
+				// Interval is not specified, set it to default values
+				query.Selector.Matchers = append(
+					query.Selector.Matchers,
+					profilequerylang.BuildMatcher(
+						profilequerylang.TimestampLabel,
+						querylang.AND,
+						querylang.Condition{Operator: operator.GTE},
+						[]string{defaultTimeIntervalStart.Format(time.RFC3339Nano)},
+					),
+				)
+			} else if timeInterval.To == nil || timeInterval.From == nil {
+				return nil, fmt.Errorf(
+					"failed to parse selector: either none or both time interval bounds should be specified",
+				)
+			}
+
+			return query, nil
+		}
+	}()
+	if err != nil {
+		return nil, err
+	}
+
+	// This increases the chance of guessing a buildID from the most recent release,
+	// instead of the previous one(s).
+	query.SortOrder = util.SortOrder{
+		Columns:    []string{profilequerylang.TimestampLabel},
+		Descending: true,
+	}
+	query.MaxSamples = 0
+	query.Pagination = util.Pagination{
+		Offset: 0,
+		Limit:  uint64(maxSamples),
+	}
+
+	return query, nil
+}
+
+func (s *PerforatorServer) GeneratePGOProfile(
+	ctx context.Context,
+	req *perforator.GeneratePGOProfileRequest,
+) (*perforator.GeneratePGOProfileResponse, error) {
+	query, err := s.constructPGOProfilesQuery(req)
+	if err != nil {
+		return nil, err
+	}
+
 	// Some services are loaded heavier than others, and thus generate larger profiles.
 	// We don't want to run out of memory when downloading 5k of huge profiles
 	// (10Mb per-profile is not uncommon, which would amount to whopping 50GB of data).
 	// Presumably, 8Gb of data should be more than enough, and we would either hit
 	// "maxSamples" limit for not-that-heavy-loaded services, or this one.
 	const profilesToProcessTotalSizeLimit = uint64(8 * 1024 * 1024 * 1024)
-	buf, PGOmeta, err := s.doGeneratePGOProfile(ctx, req.GetService(), req.GetFormat(), maxSamples, profilesToProcessTotalSizeLimit)
+	buf, PGOmeta, err := s.doGeneratePGOProfile(ctx, query, req.GetFormat(), profilesToProcessTotalSizeLimit)
 	if err != nil {
 		return nil, err
 	}

@@ -378,9 +378,24 @@ func fetchPGOProfile(args []string) error {
 		return err
 	}
 
+	startTime, endTime, err := humantime.ParseInterval(startTime, endTime)
+	if err != nil {
+		return err
+	}
+
+	builder := profilequerylang.NewBuilder().
+		Services(args[0]).
+		From(startTime).
+		To(endTime)
+
+	selector, err := profilequerylang.SelectorToString(builder.Build())
+	if err != nil {
+		return fmt.Errorf("failed to construct selector from cli arguments: %w", err)
+	}
+
 	profile, PGOMeta, err := cli.Client().GetPGOProfile(
 		cli.Context(),
-		args[0],
+		selector,
 		format,
 		false,
 	)
@@ -780,6 +795,22 @@ func setupPGOCmd() *cobra.Command {
 		"f",
 		"autofdo",
 		"Format of the profile (autofdo or bolt)",
+	)
+
+	pgoCmd.Flags().StringVarP(
+		&startTime,
+		"start",
+		"s",
+		fmt.Sprintf("%s -24h", humantime.Now),
+		`Start time to aggregate from. Unix time in seconds, ISO8601, HH:MM in the last 24 hours, or "now - 1d2h3m4s"`,
+	)
+
+	pgoCmd.Flags().StringVarP(
+		&endTime,
+		"end",
+		"e",
+		humantime.Now,
+		`End time to aggregate to. Unix time in seconds, ISO8601, HH:MM in the last 24 hours, or "now - 1d2h3m4s"`,
 	)
 
 	return pgoCmd

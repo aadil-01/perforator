@@ -466,24 +466,20 @@ func (c *Client) MergeProfiles(
 
 func (c *Client) GetPGOProfile(
 	ctx context.Context,
-	service string,
+	selector string,
 	format *perforator.PGOProfileFormat,
 	asURL bool,
 ) ([]byte, *perforator.PGOMeta, error) {
 	_, span := c.tracer.Start(ctx, "GetPGOProfile")
 	defer span.End()
 
-	c.l.Info(
-		ctx,
-		"Get sPGO profile",
-		log.Any("service", service),
-	)
-
 	_, result, err := c.runTask(ctx, &perforator.TaskSpec{
 		Kind: &perforator.TaskSpec_GeneratePGOProfile{
 			GeneratePGOProfile: &perforator.GeneratePGOProfileRequest{
-				Service: service,
-				Format:  format,
+				Query: &perforator.ProfileQuery{
+					Selector: selector,
+				},
+				Format: format,
 			},
 		},
 	})
