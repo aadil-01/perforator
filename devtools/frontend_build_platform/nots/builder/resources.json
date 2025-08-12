@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-08-06T08:48:59.106Z",
+    "created": "2025-08-08T08:25:10.397Z",
     "pr": {
-      "id": 9607345,
-      "author": "baymer",
-      "summary": "FBP-2400: nots/builder: Скачивать зависимости с помощью pnpm всегда, кроме distbuild"
+      "id": 9567182,
+      "author": "zaverden",
+      "summary": "feat(TS_PROTO): TS_PROTO_AUTO, package generation"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9385806324"
+      "uri": "sbr:9405779203"
     },
     "darwin-arm64": {
-      "uri": "sbr:9385804050"
+      "uri": "sbr:9405777166"
     },
     "linux": {
-      "uri": "sbr:9385811075"
+      "uri": "sbr:9405783131"
     },
     "linux-aarch64": {
-      "uri": "sbr:9385808477"
+      "uri": "sbr:9405781143"
     }
   }
 }

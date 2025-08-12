@@ -11,6 +11,7 @@ from .builders import (
     WebpackBuilderOptions,
     RspackBuilder,
     RspackBuilderOptions,
+    TsProtoAutoTscBuilder,
 )
 from .create_node_modules import (
     create_node_modules,
@@ -34,6 +35,7 @@ __all__ = [
     'PackageBuilderOptions',
     'TscBuilder',
     'TscBuilderOptions',
+    'TsProtoAutoTscBuilder',
     'TsProtoGenerator',
     'TsProtoGeneratorOptions',
     'ViteBuilder',

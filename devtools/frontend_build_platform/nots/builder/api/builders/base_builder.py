@@ -1,6 +1,5 @@
 import json
 import os
-import shutil
 import stat
 import sys
 import textwrap
@@ -86,7 +85,7 @@ class BaseBuilder(object):
 
     @timeit
     def _copy_package_json(self):
-        shutil.copyfile(
+        recursive_copy(
             pm_utils.build_pj_path(self.options.curdir),
             pm_utils.build_pj_path(self.options.bindir),
         )
@@ -305,7 +304,7 @@ class BaseTsBuilder(BaseBuilder):
 
     @timeit
     def _make_bins_executable(self):
-        pj = PackageJson.load(pm_utils.build_pj_path(self.options.curdir))
+        pj = PackageJson.load(pm_utils.build_pj_path(self.options.bindir))
         for bin_tool in pj.bins_iter():
             bin_path = os.path.join(self.options.bindir, bin_tool)
             bin_stat = os.stat(bin_path)
