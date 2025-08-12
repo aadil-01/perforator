@@ -13,7 +13,7 @@
 
 #include <perforator/proto/pprofprofile/lightweightprofile.pb.h>
 #include <perforator/lib/llvmex/llvm_elf.h>
-
+#include <perforator/symbolizer/lib/utils/profile_maps.h>
 
 namespace NPerforator::NAutofdo {
 
@@ -49,72 +49,8 @@ ui64 GetExecutableSectionsTotalSize(llvm::object::ObjectFile* file) {
 
 using TPerforatorProfile = NPerforator::NProto::NPProf::ProfileLight;
 
-template <typename Traits>
-class TItemByIdMap final {
-public:
-    using value_type = typename Traits::value_type;
-
-    explicit TItemByIdMap(const TPerforatorProfile& profile) {
-        SmallIdMap_.assign(Traits::Size(profile) + 1, nullptr);
-
-        for (std::size_t i = 0; i < Traits::Size(profile); ++i) {
-            const auto& item = Traits::At(profile, i);
-            const auto itemId = item.id();
-            if (itemId < SmallIdMap_.size()) {
-                SmallIdMap_[itemId] = &item;
-            } else {
-                BigIdMap_.emplace(itemId, &item);
-            }
-        }
-    }
-
-    const value_type& At(ui64 itemId) const {
-        const value_type* itemPtr = nullptr;
-
-        if (itemId < SmallIdMap_.size()) {
-            itemPtr = SmallIdMap_[itemId];
-        } else {
-            itemPtr = BigIdMap_.at(itemId);
-        }
-
-        if (itemPtr == nullptr) {
-            throw std::logic_error{fmt::format("No item with id {}", itemId)};
-        }
-
-        return *itemPtr;
-    }
-
-private:
-    std::vector<const value_type*> SmallIdMap_;
-    absl::flat_hash_map<ui64, const value_type*> BigIdMap_;
-};
-
-struct LocationByIdTraits final {
-    using value_type = NPerforator::NProto::NPProf::Location;
-
-    static std::size_t Size(const TPerforatorProfile& profile) {
-        return profile.locationSize();
-    }
-
-    static const value_type& At(const TPerforatorProfile& profile, std::size_t i) {
-        return profile.location(i);
-    }
-};
-
-struct MappingByIdTraits final {
-    using value_type = NPerforator::NProto::NPProf::Mapping;
-
-    static std::size_t Size(const TPerforatorProfile& profile) {
-        return profile.mappingSize();
-    }
-
-    static const value_type& At(const TPerforatorProfile& profile, std::size_t i) {
-        return profile.mapping(i);
-    }
-};
-
-using TLocationByIdMap = TItemByIdMap<LocationByIdTraits>;
-using TMappingByIdMap = TItemByIdMap<MappingByIdTraits>;
+using TLocationByIdMap = NUtils::TItemByIdMap<NUtils::LocationByIdTraits<TPerforatorProfile>>;
+using TMappingByIdMap = NUtils::TItemByIdMap<NUtils::MappingByIdTraits<TPerforatorProfile>>;
 
 const std::string& GetBuildId(
     const TMappingByIdMap& mappingById,

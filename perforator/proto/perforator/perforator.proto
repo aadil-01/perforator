@@ -249,6 +249,10 @@ message MergeProfilesResponse {
 message MergeExperimentalOptions {
     // Enable new fast profile merger.
     bool EnableNewProfileMerger = 1;
+
+    // Sample the stacks when doing a merge.
+    // Useful for merging a LOT of profiles.
+    bool SampleProfileStacks = 2;
 }
 
 message ProfileStatistics {

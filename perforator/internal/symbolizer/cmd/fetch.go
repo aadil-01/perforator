@@ -24,11 +24,12 @@ import (
 )
 
 var (
-	logLevel   string
-	startTime  string
-	endTime    string
-	maxSamples uint32
-	profileID  string
+	logLevel            string
+	startTime           string
+	endTime             string
+	sampleProfileStacks bool
+	maxSamples          uint32
+	profileID           string
 
 	format                        string
 	pgoFormat                     string
@@ -179,13 +180,15 @@ func mergeProfiles(
 	filters client.ProfileFilters,
 	maxSamples uint32,
 	format *client.RenderFormat,
+	performSampling bool,
 ) ([]byte, error) {
 	profile, metas, err := proxyClient.MergeProfiles(
 		ctx,
 		&client.MergeProfilesRequest{
-			ProfileFilters: filters,
-			MaxSamples:     maxSamples,
-			Format:         format,
+			ProfileFilters:  filters,
+			MaxSamples:      maxSamples,
+			Format:          format,
+			PerformSampling: performSampling,
 		},
 		false,
 	)
@@ -260,6 +263,7 @@ func fetchProfile() error {
 			},
 			maxSamples,
 			format,
+			sampleProfileStacks,
 		)
 		if err != nil {
 			return err
@@ -547,6 +551,13 @@ func addCommonSelectorOptions(cmd *cobra.Command) {
 		"e",
 		humantime.Now,
 		`End time to aggregate to. Unix time in seconds, ISO8601, HH:MM in the last 24 hours, or "now - 1d2h3m4s"`,
+	)
+
+	cmd.Flags().BoolVar(
+		&sampleProfileStacks,
+		"sample-stacks",
+		false,
+		`Whether to perform stacks sampling when doing a merge`,
 	)
 }
 

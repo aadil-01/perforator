@@ -818,7 +818,7 @@ func (s *PerforatorServer) generateAutofdoInput(
 	query *meta.ProfileQuery,
 	profilesToProcessTotalSizeLimit uint64,
 ) (autofdoInput, error) {
-	rawProfiles, err := s.selectProfiles(ctx, query, &profilesToProcessTotalSizeLimit)
+	rawProfiles, err := s.selectProfiles(ctx, query, &profilesToProcessTotalSizeLimit, false)
 	if err != nil {
 		return autofdoInput{}, err
 	}
@@ -899,9 +899,10 @@ func (s *PerforatorServer) fetchProfiles(
 	ctx context.Context,
 	query *meta.ProfileQuery,
 	targetEventType string,
+	performSampling bool,
 ) (*pprof.Profile, []richProfile, error) {
 	var rawProfiles []richProfile
-	rawProfiles, err := s.selectProfiles(ctx, query, nil)
+	rawProfiles, err := s.selectProfiles(ctx, query, nil, performSampling)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -1179,10 +1180,16 @@ func (s *PerforatorServer) MergeProfiles(
 		return nil, fmt.Errorf("event type %s is not valid", targetEventType)
 	}
 
+	performSampling := false
+	if req.Experimental != nil {
+		performSampling = req.Experimental.SampleProfileStacks
+	}
+
 	if query.MaxSamples == 0 {
 		query.MaxSamples = uint64(req.MaxSamples)
 	}
-	mergedProfile, rawProfiles, err := s.fetchProfiles(ctx, query, targetEventType)
+
+	mergedProfile, rawProfiles, err := s.fetchProfiles(ctx, query, targetEventType, performSampling)
 	if err != nil {
 		return nil, err
 	}
@@ -1402,6 +1409,7 @@ func (s *PerforatorServer) selectProfiles(
 	ctx context.Context,
 	filters *meta.ProfileQuery,
 	batchDownloadTotalSizeSoftLimit *uint64,
+	performSampling bool,
 ) (profiles []richProfile, err error) {
 	ctx, span := otel.Tracer("APIProxy").Start(ctx, "PerforatorServer.selectProfiles")
 	defer span.End()
@@ -1429,9 +1437,75 @@ func (s *PerforatorServer) selectProfiles(
 		profiles[i].meta = metas[i]
 	}
 
-	err = s.downloadProfiles(ctx, profiles, batchDownloadTotalSizeSoftLimit)
-	if err != nil {
-		return
+	if performSampling {
+		const kParallelism = 16
+		sampledProfiles := make([]richProfile, kParallelism)
+
+		const kBatchSize = 20
+		batches := make(
+			chan []richProfile,
+			(len(profiles)+kBatchSize-1)/kBatchSize,
+		)
+		for i := 0; i < len(profiles); i += kBatchSize {
+			batches <- profiles[i:min(i+kBatchSize, len(profiles))]
+		}
+		close(batches)
+
+		g, ctx := errgroup.WithContext(ctx)
+		for i := range kParallelism {
+			g.Go(func() error {
+				// Yes, this 2003 is a magic number.
+				// No, no explanation for now.
+				sampler, err := symbolize.NewStacksSampler(2003)
+				if err != nil {
+					return err
+				}
+				defer sampler.Destroy()
+
+				for batch := range batches {
+					err = s.downloadProfiles(ctx, batch, nil)
+					if err != nil {
+						return err
+					}
+
+					for j := range len(batch) {
+						sampler.AddProfile(batch[j].data)
+						// GC the thing
+						batch[j].data = nil
+
+						// This is nonsense, obviously,
+						// but idk what should actually be in meta when we sample this way
+						sampledProfiles[i].meta = batch[j].meta
+					}
+				}
+
+				sampledProfiles[i].data, err = sampler.ExtractSampledProfile()
+				if err != nil {
+					return err
+				}
+
+				return nil
+			})
+		}
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
+
+		resultingProfiles := make([]richProfile, 0, len(sampledProfiles))
+		for _, sampledProfile := range sampledProfiles {
+			if len(sampledProfile.data) == 0 {
+				continue
+			}
+
+			resultingProfiles = append(resultingProfiles, sampledProfile)
+		}
+
+		return resultingProfiles, nil
+	} else {
+		err = s.downloadProfiles(ctx, profiles, batchDownloadTotalSizeSoftLimit)
+		if err != nil {
+			return
+		}
 	}
 
 	return
