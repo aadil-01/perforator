@@ -3,6 +3,7 @@
   ".gitattributes":"perforator/opensource/github_toplevel/.gitattributes",
   ".github/workflows/postcommit.yaml":"perforator/opensource/github_toplevel/.github/workflows/postcommit.yaml",
   ".github/workflows/release.yaml":"perforator/opensource/github_toplevel/.github/workflows/release.yaml",
+  ".github/workflows/ui-release.yaml":"perforator/opensource/github_toplevel/.github/workflows/ui-release.yaml",
   ".gitignore":"perforator/opensource/github_toplevel/.gitignore",
   "CONTRIBUTING.md":"perforator/opensource/github_toplevel/CONTRIBUTING.md",
   "LICENSE":"perforator/opensource/github_toplevel/LICENSE",

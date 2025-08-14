@@ -21,6 +21,7 @@
     "typescript": "5.3.3"
   },
   "scripts": {
+    "delete-engines": "npm pkg delete engines",
     "test": "jest",
     "build": "tsc && node scripts/copy-through.mjs"
   },
