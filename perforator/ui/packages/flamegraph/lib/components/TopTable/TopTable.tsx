@@ -112,7 +112,7 @@ function topColumns (
 
     const compareCalculatedDiffFields = (field: NonDiffTopKeys) => {
         if (!totalBaseEventCount || !totalEventCount) {
-            return 0;
+            return () => 0;
         }
         const diffCalc = calcDiff(field);
         return (l: TableFunctionTop, r: TableFunctionTop) => {
