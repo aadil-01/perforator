@@ -852,8 +852,8 @@ export const renderFlamegraph: RenderFlamegraphType = (
     canvas.onmouseout = clearHighlight;
 
     // read query and display h and pos
-    const h = Number(getState('frameDepth', '0'));
-    const pos = Number(getState('framePos', '0'));
+    const h = parseInt(getState('frameDepth', '0'));
+    const pos = parseInt(getState('framePos', '0'));
     const omittedStacks = parseStacks(getState('omittedIndexes', '') || '');
 
     const foundCoords = maybeSearch(searchPattern);
@@ -863,8 +863,8 @@ export const renderFlamegraph: RenderFlamegraphType = (
 
     const onResize = () => requestAnimationFrame(() => {
 
-        const initialH = Number(getState('frameDepth', '0'));
-        const initialI = Number(getState('framePos', '0'));
+        const initialH = parseInt(getState('frameDepth', '0'));
+        const initialI = parseInt(getState('framePos', '0'));
         //@ts-ignore
         canvas.style.width = null;
         initCanvas();

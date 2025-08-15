@@ -14,10 +14,10 @@ const b = cn('visualisation_sbs')
 
 export function SideBySide(props: SideBySideProps) {
     const {profileData, getState} = props;
-    const frameDepth = Number(getState('frameDepth', '0'));
-    const framePos = Number(getState('framePos', '0'));
+    const frameDepth = parseInt(getState('frameDepth', '0'));
+    const framePos = parseInt(getState('framePos', '0'));
     const omitted = getState('omittedIndexes', '');
-    
+
 
 
     const topData = React.useMemo(() => {
