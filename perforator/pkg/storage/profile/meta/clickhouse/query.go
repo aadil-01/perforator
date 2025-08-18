@@ -98,6 +98,8 @@ var (
 		"id":        true,
 		"timestamp": true,
 	}
+
+	envsColumn = "envs"
 )
 
 func getTimestampFraction(ts time.Time) float64 {
@@ -218,7 +220,7 @@ func buildEnvWhereClause(matcher *querylang.Matcher) (string, error) {
 	}
 
 	concatenatedEnv := env.BuildConcatenatedEnv(envKey, val)
-	return buildMultiValueWhereClause(matcher.Operator, "envs", []string{fmt.Sprintf("'%s'", sqlbuilder.Escape(concatenatedEnv))}), nil
+	return buildMultiValueWhereClause(matcher.Operator, envsColumn, []string{fmt.Sprintf("'%s'", sqlbuilder.Escape(concatenatedEnv))}), nil
 }
 
 func buildSingleValueColumnWhereClause(column string, matcher *querylang.Matcher) (string, error) {

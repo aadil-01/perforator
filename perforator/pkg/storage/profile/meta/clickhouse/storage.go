@@ -10,6 +10,7 @@ import (
 
 	"github.com/yandex/perforator/library/go/core/log"
 	"github.com/yandex/perforator/library/go/core/metrics"
+	"github.com/yandex/perforator/perforator/pkg/env"
 	"github.com/yandex/perforator/perforator/pkg/sqlbuilder"
 	"github.com/yandex/perforator/perforator/pkg/storage/profile/meta"
 	"github.com/yandex/perforator/perforator/pkg/storage/storage"
@@ -156,7 +157,12 @@ func (s *Storage) ListSuggestions(
 	ctx context.Context,
 	query *meta.SuggestionsQuery,
 ) ([]*meta.Suggestion, error) {
-	columns := labelsToColumns[query.Field]
+	var columns []string
+	if env.IsEnvMatcherField(query.Field) {
+		columns = []string{envsColumn}
+	} else {
+		columns = labelsToColumns[query.Field]
+	}
 	if len(columns) == 0 {
 		s.l.Debug(
 			ctx,
@@ -187,8 +193,26 @@ func (s *Storage) ListSuggestions(
 		return nil, err
 	}
 
+	if column == envsColumn {
+		column = "envValue"
+		envKey, ok := env.BuildEnvKeyFromMatcherField(query.Field)
+		if !ok {
+			return nil, fmt.Errorf("failed to build env key from query field: %v", query.Field)
+		}
+		prefix := env.BuildConcatenatedEnv(envKey, "")
+		builder.Values(fmt.Sprintf(
+			`if(isNotNull(arrayFirstOrNull(s -> startsWith(s, '%s'), %s) as envElement), substring(envElement, length('%s') + 1), NULL) as %s`,
+			prefix,
+			envsColumn,
+			prefix,
+			column,
+		))
+		builder.Where("isNotNull(envElement)")
+	} else {
+		builder.Values(column)
+	}
+
 	builder.
-		Values(column).
 		GroupBy(column).
 		OrderBy(&sqlbuilder.OrderBy{
 			Columns:    []string{column},
