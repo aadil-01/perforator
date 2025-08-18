@@ -4,9 +4,11 @@ import { Alert, Button, Loader } from '@gravity-ui/uikit';
 
 import { uiFactory } from 'src/factory';
 import type { TaskResult } from 'src/models/Task';
+import { cn } from 'src/utils/cn';
 import { getFormat, isDiffTaskResult } from 'src/utils/renderingFormat';
 
 import { ErrorPanel } from '../ErrorPanel/ErrorPanel';
+import { useFullscreen } from '../Fullscreen/FullscreenContext';
 
 import { TaskFlamegraph } from './TaskFlamegraph/TaskFlamegraph';
 import { TextProfile } from './TextProfile/TextProfile';
@@ -18,8 +20,12 @@ export interface TaskReportProps {
     task: TaskResult | null;
 }
 
+const b = cn('task-report');
+
 export const TaskReport: React.FC<TaskReportProps> = props => {
     const url = props.task?.Result?.MergeProfiles?.ProfileURL || props.task?.Result?.DiffProfiles?.ProfileURL;
+    const { enabled: fullscreen } = useFullscreen();
+
     const isDiff = isDiffTaskResult(props.task);
     const mergeRenderFormat = props.task?.Spec?.MergeProfiles?.Format;
     const diffRenderFormat = props.task?.Spec?.DiffProfiles?.RenderFormat;
@@ -71,7 +77,7 @@ export const TaskReport: React.FC<TaskReportProps> = props => {
     };
 
     return (
-        <div className="task-report">
+        <div className={b({ fullscreen })}>
             {renderContent()}
         </div>
     );
