@@ -241,6 +241,7 @@ class TConverterContext {
 
     enum class ESpecialMappingKind {
         None,
+        Missing,
         Kernel,
         Python,
     };
@@ -331,6 +332,10 @@ private:
             case ESpecialMappingKind::None:
                 break;
 
+            case ESpecialMappingKind::Missing:
+                OldMissingLocationIds_.Insert(location.id());
+                break;
+
             case ESpecialMappingKind::Kernel:
                 OldKernelLocationIds_.Insert(location.id());
                 break;
@@ -417,7 +422,9 @@ private:
         for (ui64 location : sample.location_id()) {
             TStackFrameId frame = LocationMapping_.GetNewIndex(location);
 
-            if (OldPythonLocationIds_.Contains(location)) {
+            if (OldMissingLocationIds_.Contains(location)) {
+                (insideKernel ? kernelStack : userStack).AddFrame(frame);
+            } else if (OldPythonLocationIds_.Contains(location)) {
                 if (!pythonStack) {
                     pythonStack.ConstructInPlace(Builder_
                         .AddSimpleStack()
@@ -453,6 +460,8 @@ private:
             return ESpecialMappingKind::Kernel;
         } else if (mappingId == OldPythonMappingId_) {
             return ESpecialMappingKind::Python;
+        } else if (mappingId == 0) {
+            return ESpecialMappingKind::Missing;
         } else {
             return ESpecialMappingKind::None;
         }
@@ -507,6 +516,7 @@ private:
     NDetail::TIndexedEntityRemapping<TFunctionId> FunctionMapping_;
     NDetail::TIndexedEntityRemapping<TStackFrameId> LocationMapping_;
     TVector<TValueTypeId> ValueTypes_;
+    TCompactIntegerSet<ui64> OldMissingLocationIds_;
     TCompactIntegerSet<ui64> OldKernelLocationIds_;
     TCompactIntegerSet<ui64> OldPythonLocationIds_;
     ui64 OldKernelMappingId_ = Max<ui64>();
