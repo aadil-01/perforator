@@ -6,7 +6,7 @@
     "title": "rspack CLI",
     "description": "CLI часть от `rspack`, вынесенная в отдельный пакет.\n\nНеобходима на проекте для того, чтобы мочь в принципе запускать сборку `rspack`.",
     "type": "NPM_PACKAGE",
-    "default": "1.4.10",
+    "default": "1.4.11",
     "links": {
       "Home": "https://rspack.rs/api/cli",
       "Sources": "https://github.com/web-infra-dev/rspack/tree/main/packages/rspack-cli",
@@ -16,6 +16,10 @@
     "specifier": ">=1.3.11",
     "useDirectly": true,
     "versions": {
+      "1.4.11": {
+        "add_date": "2025-08-19T05:30:47",
+        "resources": []
+      },
       "1.4.10": {
         "add_date": "2025-08-12T05:30:49",
         "resources": []
@@ -58,7 +62,7 @@
     "title": "rspack Core",
     "description": "Альтернативный сборщик frontend проектов\n\nВ tier-0 используется в модуле/макросе [`TS_RSPACK()`](https://docs.yandex-team.ru/frontend-in-arcadia/references/TS_RSPACK).",
     "type": "NPM_PACKAGE",
-    "default": "1.4.10",
+    "default": "1.4.11",
     "links": {
       "Home": "https://rspack.rs",
       "Sources": "https://github.com/web-infra-dev/rspack",
@@ -68,6 +72,10 @@
     "specifier": ">=1.3.11",
     "useDirectly": true,
     "versions": {
+      "1.4.11": {
+        "add_date": "2025-08-19T05:30:57",
+        "resources": []
+      },
       "1.4.10": {
         "add_date": "2025-08-12T05:31:00",
         "resources": []
@@ -1839,7 +1847,7 @@
     "title": "Next.js",
     "description": "Сборщик-бандлер от проекта Next.js\n\nОчень opinionated, но кому-то подходит.\n\nВ tier-0 используется в модуле/макросе [`TS_NEXT()`](https://docs.yandex-team.ru/frontend-in-arcadia/references/TS_NEXT).",
     "type": "NPM_PACKAGE",
-    "default": "15.4.4",
+    "default": "15.4.5",
     "links": {
       "Home": "https://nextjs.org",
       "Sources": "https://github.com/vercel/next.js",
@@ -1848,6 +1856,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "15.4.5": {
+        "add_date": "2025-08-19T05:31:08",
+        "resources": []
+      },
       "15.4.4": {
         "add_date": "2025-08-12T05:31:18",
         "resources": []
@@ -1934,6 +1946,10 @@
       },
       "15.0.0": {
         "add_date": "2024-11-05T05:31:52",
+        "resources": []
+      },
+      "14.2.31": {
+        "add_date": "2025-08-19T05:31:08",
         "resources": []
       },
       "14.2.30": {
@@ -4946,7 +4962,7 @@
   "playwright": {
     "description": "Раннер для тестов Playwright, позволяет выполнять end-to-end тесты с учётом специфики различных браузеров и устройств",
     "type": "NPM_PACKAGE",
-    "default": "1.54.1",
+    "default": "1.54.2",
     "links": {
       "Home": "https://playwright.dev/",
       "Sources": "https://github.com/microsoft/playwright",
@@ -4956,6 +4972,10 @@
     "specifier": ">=1.41.2",
     "useDirectly": true,
     "versions": {
+      "1.54.2": {
+        "add_date": "2025-08-19T05:36:38",
+        "resources": []
+      },
       "1.54.1": {
         "add_date": "2025-07-29T05:43:33",
         "resources": []
@@ -5369,7 +5389,7 @@
     "title": "Stylelint",
     "description": "Инструмент для линтинга файлов стилей.\n\nИспользуется в макросе [TS_STYLELINT()](https://docs.yandex-team.ru/frontend-in-arcadia/references/macros#ts-stylelint).",
     "type": "NPM_PACKAGE",
-    "default": "16.22.0",
+    "default": "16.23.0",
     "links": {
       "Home": "https://stylelint.io/",
       "Sources": "https://github.com/stylelint/stylelint",
@@ -5379,6 +5399,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "16.23.0": {
+        "add_date": "2025-08-19T05:36:46",
+        "resources": []
+      },
       "16.22.0": {
         "add_date": "2025-08-05T05:31:40",
         "resources": []
@@ -5521,7 +5545,7 @@
     "title": "TypeScript",
     "description": "Официальная реализация языка TypeScript\n\nВ проекте используется только `tsc` - компилятор/траспиллер TS в JS.\nТакже ожидается наличие `tsconfig.json` на проекте.\n\nВ tier-0 используется напрямую в модуле/макросе [`TS_TSC()`](https://docs.yandex-team.ru/frontend-in-arcadia/references/TS_TSC).\nНо опосредованно может использоваться и в других макросах.",
     "type": "NPM_PACKAGE",
-    "default": "5.8.3",
+    "default": "5.9.2",
     "links": {
       "Home": "https://www.typescriptlang.org",
       "Sources": "https://github.com/microsoft/TypeScript/",
@@ -5533,6 +5557,10 @@
     "useDirectly": true,
     "defaultBinName": "tsc",
     "versions": {
+      "5.9.2": {
+        "add_date": "2025-08-19T05:36:53",
+        "resources": []
+      },
       "5.8.3": {
         "add_date": "2025-04-22T05:31:11",
         "resources": []
