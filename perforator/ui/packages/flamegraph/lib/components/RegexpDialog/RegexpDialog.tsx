@@ -26,6 +26,7 @@ export function RegexpDialog({ showDialog, onCloseDialog, onSearchUpdate, initia
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
         if (e.key === 'Enter' && !regexError) {
             onSearchUpdate(searchQuery, exact);
+            e.preventDefault()
         }
     }, [exact, onSearchUpdate, regexError, searchQuery]);
 
