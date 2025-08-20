@@ -125,3 +125,40 @@
     white-space: nowrap;
     margin-right: auto;
 }
+
+.flamegraph__func-popup {
+    white-space: pre-wrap;
+    max-width: 600px;
+    font-family: monospace;
+    font-size: 11px;
+    line-height: 13px;
+    word-wrap: break-word;
+    pointer-events: none !important;
+    text-wrap: stable;
+}
+
+/* every next color is about +60 degrees from base hue of red */
+
+.color-0 {
+    color: oklch(0.6280 0.257700 29.23000);
+}
+
+.color-1 {
+    color: oklch(0.628 0.1278 89);
+}
+
+.color-2 {
+    color: oklch(0.8664 0.294827 142.4953);
+}
+
+.color-3 {
+    color: oklch(0.628 0.1066 202);
+}
+
+.color-4 {
+    color: oklch(0.4520 0.313214 264.0520);
+}
+
+.color-5 {
+    color: oklch(0.628 0.1066 324);
+}

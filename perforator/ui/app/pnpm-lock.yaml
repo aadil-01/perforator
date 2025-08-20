@@ -156,6 +156,15 @@ importers:
       '@bem-react/classname':
         specifier: ^1.6.0
         version: 1.6.0
+      '@floating-ui/core':
+        specifier: 1.7.2
+        version: 1.7.2
+      '@floating-ui/react':
+        specifier: 0.27.13
+        version: 0.27.13(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@floating-ui/react-dom':
+        specifier: 2.1.4
+        version: 2.1.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@gravity-ui/components':
         specifier: ^4.7.1
         version: 4.7.1(@gravity-ui/uikit@7.16.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1))(react-dom@18.3.1(react@18.3.1))(react@18.3.1)

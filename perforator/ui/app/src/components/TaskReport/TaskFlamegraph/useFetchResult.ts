@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { AxiosError } from 'axios';
+
 
 type UseFetchArgs<D> = {
     url: string;
@@ -27,6 +29,13 @@ export function useFetchResult<D>(args: UseFetchArgs<D>) {
         try {
             await getData({ signal });
         } catch (e) {
+            if (e instanceof AxiosError && e.code === 'ERR_CANCELED') {
+                return;
+            }
+            if (e instanceof Error && e.name === 'AbortError') {
+                return;
+            }
+
             setError(e as Error);
         }
     };

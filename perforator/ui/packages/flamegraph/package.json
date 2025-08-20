@@ -1,6 +1,6 @@
 {
   "name": "@perforator/flamegraph",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Yandex perforator flamegraph UI rendering library",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -49,6 +49,9 @@
     "node": "20.18.1"
   },
   "dependencies": {
+    "@floating-ui/core": "1.7.2",
+    "@floating-ui/react": "0.27.13",
+    "@floating-ui/react-dom": "2.1.4",
     "culori": "4.0.1"
   }
 }

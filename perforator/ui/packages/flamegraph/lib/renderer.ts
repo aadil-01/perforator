@@ -578,8 +578,6 @@ export const renderFlamegraph: RenderFlamegraphType = (
 
     const getStatusTitle = getStatusTitleFull(eventType, renderTitle);
 
-    const getCanvasTitle = getCanvasTitleFull(eventType, renderTitle);
-
 
     function renderImpl(opts?: RenderOpts) {
 
@@ -829,9 +827,8 @@ export const renderFlamegraph: RenderFlamegraphType = (
         const top = (fg.calcTopOffset(h) + canvas.offsetTop);
         const title = getNodeTitleHl(node);
         const isMainRoot = currentNode && currentNode.textId === root.textId && currentNode.eventCount === root.eventCount;
-        const highlightTitle = isMainRoot ? getCanvasTitle(node, null, root) : getCanvasTitle(node, currentNode!, root);
         const color = calcHighlightColor(node);
-        renderHighlight(title, color, left, top, width, highlightTitle);
+        renderHighlight(title, color, left, top, width);
 
         status.textContent = 'Function: ' + (isMainRoot ? getStatusTitle(node, null, root) : getStatusTitle(node, currentNode!, root));
         return;
@@ -877,14 +874,13 @@ export const renderFlamegraph: RenderFlamegraphType = (
         window.removeEventListener('resize', onResize);
     };
 
-    function renderHighlight(title: string, newColor: string | null, left: number, top: number, width: number, highlightTitle: string) {
+    function renderHighlight(title: string, newColor: string | null, left: number, top: number, width: number) {
         hl.firstChild!.textContent = title;
         //@ts-ignore allowing to use null for reset
         hl.style.backgroundColor = newColor;
         hl.style.transform = `translate(${left}px, ${top}px)`
         hl.style.width = width + 'px';
         hl.style.display = 'block';
-        canvas.title = highlightTitle;
         canvas.style.cursor = 'pointer';
     }
 };
