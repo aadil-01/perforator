@@ -37,8 +37,11 @@ PEERDIR(perforator/ui/union)
 
 END()
 
+IF (NOT OPENSOURCE)
+    RECURSE(gotest)
+ENDIF()
+
 RECURSE(
     cmd
-    gotest
     format
 )
