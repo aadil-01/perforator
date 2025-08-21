@@ -19,15 +19,6 @@ var (
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type Namespace string
-
-const (
-	NamespaceDefault Namespace = "default"
-	NamespaceAgent   Namespace = "agent"
-)
-
-////////////////////////////////////////////////////////////////////////////////
-
 type TaskService interface {
 	GetTask(ctx context.Context, id TaskID) (*Task, error)
 	CountTasks(ctx context.Context, filter *TaskFilter) (uint64, error)

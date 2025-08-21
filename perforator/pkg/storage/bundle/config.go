@@ -18,8 +18,8 @@ type Config struct {
 	BinaryStorage     *binary.Config                    `yaml:"binaries"`
 	MicroscopeStorage *microscope.MicroscopeStorageType `yaml:"microscope"`
 	TaskStorage       *tasks.TasksConfig                `yaml:"tasks"`
-	AgentTasksStorage *tasks.TasksConfig                `yaml:"agent_tasks,omitempty"`
-	DBs               databases.Config                  `yaml:"databases"`
+
+	DBs databases.Config `yaml:"databases"`
 }
 
 func ParseConfig(path string, strict bool) (conf *Config, err error) {

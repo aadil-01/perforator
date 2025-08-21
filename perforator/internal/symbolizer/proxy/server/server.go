@@ -121,7 +121,6 @@ type PerforatorServer struct {
 	renderedProfiles  blob.Storage
 	bannedUsers       *BannedUsersRegistry
 	tasks             asynctask.TaskService
-	agentTasks        asynctask.TaskService
 	tasksemaphore     *semaphore.Weighted
 
 	downloader *downloader.Downloader
@@ -281,7 +280,6 @@ func NewPerforatorServer(
 		renderedProfiles:  renderedProfiles,
 		bannedUsers:       bannedUsers,
 		tasks:             storageBundle.TaskStorage,
-		agentTasks:        storageBundle.AgentTasksStorage,
 		tasksemaphore:     semaphore.NewWeighted(conf.Tasks.ConcurrencyLimit),
 		httpclient:        resty.New().SetTimeout(time.Hour).SetRetryCount(3),
 		downloader:        downloaderInstance,

@@ -11,15 +11,6 @@ option go_package = "github.com/yandex/perforator/perforator/proto/perforator";
 
 ////////////////////////////////////////////////////////////////////////////////
 
-enum TaskNamespace {
-    // Default task type - e.g. MergeProfiles, DiffProfiles, ...
-    TaskNamespaceDefault = 0;
-    // e.g. RecordRemoteProfile
-    TaskNamespaceAgent = 1;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 service TaskService {
     // Schedule async (i.e. heavy profiles merging) task.
     rpc StartTask(StartTaskRequest) returns (StartTaskResponse) {
@@ -53,14 +44,12 @@ message StartTaskRequest {
 
 message StartTaskResponse {
     string TaskID = 1;
-    TaskNamespace Namespace = 2;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
 message GetTaskRequest {
     string TaskID = 1;
-    TaskNamespace Namespace = 2;
 }
 
 message GetTaskResponse {
@@ -74,10 +63,9 @@ message GetTaskResponse {
 message ListTasksRequest {
     TaskQuery Query = 1;
     Paginated Pagination = 2;
-    TaskNamespace Namespace = 3;
 }
 
-message ListTasksResponse { 
+message ListTasksResponse {
     repeated Task Tasks = 1;
     int64 TotalCount = 2;
 }
@@ -124,23 +112,11 @@ message TaskResult {
     }
 }
 
-message RecordRemoteTaskStats {
-    uint64 CollectedProfiles = 1;
-    uint64 EventsCount = 2;
-}
-
-message TaskStats {
-    oneof Stats {
-        RecordRemoteTaskStats RecordRemoteTaskStats = 1;
-    }
-}
-
 message TaskStatus {
     TaskState State = 1;
     int64 LastPing = 2;
     string Error = 3;
     repeated TaskExecution Attempts = 4;
-    TaskStats Stats = 5;
 }
 
 enum TaskState {

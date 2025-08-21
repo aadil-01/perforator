@@ -30,7 +30,7 @@ func NewTasksService(logger xlog.Logger, reg metrics.Registry, opts ...Option) (
 
 		return tasks, nil
 	case options.postgresCluster != nil && options.postgresConfig != nil:
-		tasks, err := postgrestaskservice.NewTaskService(options.namespace, options.postgresConfig, options.postgresCluster, logger, reg)
+		tasks, err := postgrestaskservice.NewTaskService(options.postgresConfig, options.postgresCluster, logger, reg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create asynctask service: %w", err)
 		}

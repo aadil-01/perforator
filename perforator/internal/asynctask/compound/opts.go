@@ -3,7 +3,6 @@ package compound
 import (
 	hasql "golang.yandex/hasql/sqlx"
 
-	"github.com/yandex/perforator/perforator/internal/asynctask"
 	inmemorytaskservice "github.com/yandex/perforator/perforator/internal/asynctask/inmemory"
 	postgrestaskservice "github.com/yandex/perforator/perforator/internal/asynctask/postgres"
 )
@@ -13,7 +12,6 @@ type Option = func(*options)
 type options struct {
 	postgresCluster *hasql.Cluster
 	postgresConfig  *postgrestaskservice.Config
-	namespace       asynctask.Namespace
 
 	inMemoryConfig *inmemorytaskservice.Config
 }
@@ -30,12 +28,6 @@ func WithPostgresTasksStorage(conf *TasksConfig, cluster *hasql.Cluster) Option 
 			PingTimeout: conf.PingTimeout,
 			MaxAttempts: conf.MaxAttempts,
 		}
-	}
-}
-
-func WithNamespace(namespace asynctask.Namespace) Option {
-	return func(o *options) {
-		o.namespace = namespace
 	}
 }
 

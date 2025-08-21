@@ -24,12 +24,7 @@ func (s *PerforatorServer) GetTask(
 	ctx context.Context,
 	req *perforator.GetTaskRequest,
 ) (*perforator.GetTaskResponse, error) {
-	taskStorage, err := s.getTaskStorageByNamespace(req.GetNamespace())
-	if err != nil {
-		return nil, err
-	}
-
-	task, err := taskStorage.GetTask(ctx, asynctask.TaskID(req.GetTaskID()))
+	task, err := s.tasks.GetTask(ctx, asynctask.TaskID(req.GetTaskID()))
 	if err != nil {
 		return nil, err
 	}
@@ -39,29 +34,6 @@ func (s *PerforatorServer) GetTask(
 		Status: task.Status,
 		Result: task.Result,
 	}, nil
-}
-
-func determineTaskNamespaceBySpec(spec *perforator.TaskSpec) perforator.TaskNamespace {
-	switch spec.GetKind().(type) {
-	case *perforator.TaskSpec_RecordRemoteProfile:
-		return perforator.TaskNamespace_TaskNamespaceAgent
-	default:
-		return perforator.TaskNamespace_TaskNamespaceDefault
-	}
-}
-
-func (s *PerforatorServer) getTaskStorageByNamespace(namespace perforator.TaskNamespace) (tasks asynctask.TaskService, err error) {
-	switch namespace {
-	case perforator.TaskNamespace_TaskNamespaceAgent:
-		tasks = s.agentTasks
-	default:
-		tasks = s.tasks
-	}
-	if tasks == nil {
-		return nil, fmt.Errorf("task storage is not configured for namespace %s", namespace.String())
-	}
-
-	return tasks, nil
 }
 
 // StartTask implements perforator.TaskServiceServer.
@@ -83,27 +55,16 @@ func (s *PerforatorServer) StartTask(
 		meta.IdempotencyKey = key
 	}
 
-	taskNamespace := determineTaskNamespaceBySpec(req.GetSpec())
-	taskStorage, err := s.getTaskStorageByNamespace(taskNamespace)
+	id, err := s.tasks.AddTask(ctx, meta, req.GetSpec())
 	if err != nil {
 		return nil, err
 	}
 
-	id, err := taskStorage.AddTask(ctx, meta, req.GetSpec())
-	if err != nil {
-		return nil, err
-	}
-
-	return &perforator.StartTaskResponse{TaskID: string(id), Namespace: taskNamespace}, nil
+	return &perforator.StartTaskResponse{TaskID: string(id)}, nil
 }
 
 // ListTasks implements perforator.TaskServiceServer.
 func (s *PerforatorServer) ListTasks(ctx context.Context, req *perforator.ListTasksRequest) (*perforator.ListTasksResponse, error) {
-	taskStorage, err := s.getTaskStorageByNamespace(req.GetNamespace())
-	if err != nil {
-		return nil, err
-	}
-
 	query := req.GetQuery()
 	pagination := req.GetPagination()
 
@@ -133,13 +94,13 @@ func (s *PerforatorServer) ListTasks(ctx context.Context, req *perforator.ListTa
 	var tasks []asynctask.Task
 	g.Go(func() error {
 		var err error
-		count, err = taskStorage.CountTasks(ctx, filter)
+		count, err = s.tasks.CountTasks(ctx, filter)
 		return err
 	})
 
 	g.Go(func() error {
 		var err error
-		tasks, err = taskStorage.ListTasks(ctx, filter, limit, offset)
+		tasks, err = s.tasks.ListTasks(ctx, filter, limit, offset)
 		return err
 	})
 

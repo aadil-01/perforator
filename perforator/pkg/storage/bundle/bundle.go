@@ -34,7 +34,6 @@ type StorageBundle struct {
 	BinaryStorage     binarystorage.StorageSelector
 	MicroscopeStorage microscope.Storage
 	TaskStorage       asynctask.TaskService
-	AgentTasksStorage asynctask.TaskService
 }
 
 // bgCtx should be valid for as long as databases are used
@@ -102,28 +101,14 @@ func NewStorageBundle(ctx context.Context, bgCtx context.Context, l xlog.Logger,
 	}
 
 	if c.TaskStorage != nil {
-		opts, err := res.createStorageSpecificOptionsForTasks(c.TaskStorage.StorageType)
+		opts, err := res.createOptsFromTasksStorageType(c.TaskStorage.StorageType)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create tasks storage options: %w", err)
 		}
-		opts = append(opts, tasks.WithNamespace(asynctask.NamespaceDefault))
 
 		res.TaskStorage, err = tasks.NewTasksService(l, reg, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("failed to init tasks service: %w", err)
-		}
-	}
-
-	if c.AgentTasksStorage != nil {
-		opts, err := res.createStorageSpecificOptionsForTasks(c.AgentTasksStorage.StorageType)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create agent tasks storage options: %w", err)
-		}
-		opts = append(opts, tasks.WithNamespace(asynctask.NamespaceAgent))
-
-		res.AgentTasksStorage, err = tasks.NewTasksService(l, reg, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("failed to init agent tasks service: %w", err)
 		}
 	}
 
@@ -151,7 +136,7 @@ func (b *StorageBundle) createOptsFromMetaStorageType(metaStorageType binarystor
 	return opts, nil
 }
 
-func (b *StorageBundle) createStorageSpecificOptionsForTasks(tasksStorageType tasks.TasksStorageType) ([]tasks.Option, error) {
+func (b *StorageBundle) createOptsFromTasksStorageType(tasksStorageType tasks.TasksStorageType) ([]tasks.Option, error) {
 	opts := []tasks.Option{}
 	switch tasksStorageType {
 	case tasks.Postgres:
