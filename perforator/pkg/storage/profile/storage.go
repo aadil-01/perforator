@@ -28,6 +28,8 @@ type ProfileStorage struct {
 
 	downloadSemaphore *semaphore.Weighted
 
+	decompressor *zstd.Decoder
+
 	log xlog.Logger
 }
 
@@ -95,22 +97,18 @@ func (s *ProfileStorage) ListSuggestions(
 	return s.MetaStorage.ListSuggestions(ctx, query)
 }
 
-func uncompressZstd(byteString []byte, compression string) ([]byte, error) {
-	decoder, err := zstd.NewReader(nil)
-	if err != nil {
-		return nil, err
-	}
+func (s *ProfileStorage) uncompressZstd(byteString []byte, compression string) ([]byte, error) {
+	result, err := s.decompressor.DecodeAll(byteString, []byte{})
 
-	result, err := decoder.DecodeAll(byteString, []byte{})
 	if err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-func uncompressIfNeeded(bytes []byte, compression string) ([]byte, error) {
+func (s *ProfileStorage) uncompressIfNeeded(bytes []byte, compression string) ([]byte, error) {
 	if strings.HasPrefix(compression, "zstd") {
-		return uncompressZstd(bytes, compression)
+		return s.uncompressZstd(bytes, compression)
 	}
 
 	return bytes, nil
@@ -171,7 +169,7 @@ func (s *ProfileStorage) FetchProfile(ctx context.Context, meta *meta.ProfileMet
 	}
 
 	codec := meta.Attributes[CompressionLabel]
-	data, err = uncompressIfNeeded(data, codec)
+	data, err = s.uncompressIfNeeded(data, codec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to uncompress profile %s, compression `%s`: %w", meta.ID, codec, err)
 	}
@@ -230,9 +228,15 @@ func NewStorage(
 	metaStorage meta.Storage,
 	blobStorage blob.Storage,
 	blobDownloadConcurrency uint32,
-) *ProfileStorage {
+) (*ProfileStorage, error) {
 	if blobDownloadConcurrency == 0 {
 		blobDownloadConcurrency = 32
+	}
+
+	decompressor, err := zstd.NewReader(nil)
+
+	if err != nil {
+		return nil, err
 	}
 
 	return &ProfileStorage{
@@ -240,5 +244,6 @@ func NewStorage(
 		BlobStorage:       blobStorage,
 		downloadSemaphore: semaphore.NewWeighted(int64(blobDownloadConcurrency)),
 		log:               logger,
-	}
+		decompressor:      decompressor,
+	}, nil
 }
