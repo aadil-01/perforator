@@ -60,6 +60,10 @@ type ACLConfig struct {
 	RecordRemoteUsers []string `yaml:"record_remote_users"`
 }
 
+type ProfileMergerConfig struct {
+	ThreadCount uint32 `yaml:"thread_count"`
+}
+
 type Config struct {
 	StorageConfig        bundle.Config         `yaml:"storage"`
 	BinaryProvider       BinaryProviderConfig  `yaml:"binary_provider"`
@@ -71,6 +75,7 @@ type Config struct {
 	ListServicesSettings *ListServicesSettings `yaml:"list_services_settings"`
 	PGOConfig            *PGOConfig            `yaml:"pgo_config"`
 	Tracing              *tracing.Config       `yaml:"tracing"`
+	ProfileMerger        ProfileMergerConfig   `yaml:"profile_merger"`
 	SymbolizationConfig  SymbolizationConfig   `yaml:"symbolization"`
 	ACL                  ACLConfig             `yaml:"acl"`
 }
@@ -93,5 +98,8 @@ func (c *Config) FillDefault() {
 	}
 	if c.Tracing == nil {
 		c.Tracing = tracing.NewDefaultConfig()
+	}
+	if c.ProfileMerger.ThreadCount == 0 {
+		c.ProfileMerger.ThreadCount = 16
 	}
 }

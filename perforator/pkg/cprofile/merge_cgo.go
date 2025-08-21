@@ -61,10 +61,7 @@ func (m *MergeManager) Start(opts *pb.MergeOptions) (*MergeSession, error) {
 
 	session := &MergeSession{merger}
 	runtime.SetFinalizer(session, func(m *MergeSession) {
-		if m.session != nil {
-			C.PerforatorMergerDispose(m.session)
-			m.session = nil
-		}
+		session.Close()
 	})
 
 	return session, nil
@@ -95,26 +92,20 @@ func (s *MergeSession) AddPProfProfile(data []byte) error {
 	return nil
 }
 
-func (s *MergeSession) Finish() ([]byte, error) {
+func (s *MergeSession) Finish() (*Profile, error) {
 	var profile C.TPerforatorProfile
 	perr := C.PerforatorMergerFinish(s.session, &profile)
 	if err := unwrap(perr); err != nil {
 		return nil, err
 	}
-	defer C.PerforatorProfileDispose(profile)
+	return newProfile(profile), nil
+}
 
-	var str C.TPerforatorString
-	perr = C.PerforatorProfileSerialize(profile, &str)
-	if err := unwrap(perr); err != nil {
-		return nil, err
+func (s *MergeSession) Close() {
+	if s.session != nil {
+		C.PerforatorMergerDispose(s.session)
+		s.session = nil
 	}
-	defer C.PerforatorStringDispose(str)
-
-	res := C.GoBytes(
-		unsafe.Pointer(C.PerforatorStringData(str)),
-		C.int(C.PerforatorStringSize(str)),
-	)
-	return res, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

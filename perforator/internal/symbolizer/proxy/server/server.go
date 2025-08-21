@@ -46,6 +46,7 @@ import (
 	"github.com/yandex/perforator/perforator/internal/symbolizer/binaryprovider/downloader"
 	"github.com/yandex/perforator/perforator/internal/symbolizer/symbolize"
 	"github.com/yandex/perforator/perforator/internal/xmetrics"
+	"github.com/yandex/perforator/perforator/pkg/cprofile"
 	"github.com/yandex/perforator/perforator/pkg/grpcutil/grpclog"
 	"github.com/yandex/perforator/perforator/pkg/grpcutil/grpcmetrics"
 	"github.com/yandex/perforator/perforator/pkg/polyheapprof"
@@ -66,6 +67,7 @@ import (
 	"github.com/yandex/perforator/perforator/pkg/tracing"
 	"github.com/yandex/perforator/perforator/pkg/xlog"
 	"github.com/yandex/perforator/perforator/proto/perforator"
+	profileproto "github.com/yandex/perforator/perforator/proto/profile"
 )
 
 var (
@@ -126,8 +128,8 @@ type PerforatorServer struct {
 	downloader *downloader.Downloader
 	httpclient *resty.Client
 
-	mutex      sync.Mutex
-	symbolizer *symbolize.Symbolizer
+	symbolizer   *symbolize.Symbolizer
+	mergemanager *cprofile.MergeManager
 
 	llvmTools LLVMTools
 
@@ -226,6 +228,11 @@ func NewPerforatorServer(
 		return nil, err
 	}
 
+	mergemanager, err := cprofile.NewMergeManager(int(conf.ProfileMerger.ThreadCount))
+	if err != nil {
+		return nil, err
+	}
+
 	authp, err := newAuthProvider(l, conf.Server.Insecure)
 	if err != nil {
 		return nil, err
@@ -285,6 +292,7 @@ func NewPerforatorServer(
 		downloader:        downloaderInstance,
 		llvmTools:         llvmTools,
 		symbolizer:        symbolizer,
+		mergemanager:      mergemanager,
 		grpcServer:        grpcServer,
 		httpRouter:        httpr,
 		healthServer:      healthServer,
@@ -483,6 +491,14 @@ func extractProtoMetasFromRawProfiles(profiles []richProfile) []*perforator.Prof
 	protometas := make([]*perforator.ProfileMeta, len(profiles))
 	for i, profile := range profiles {
 		protometas[i] = storageMetaToProtoMeta(profile.meta)
+	}
+	return protometas
+}
+
+func extractProtoMetasFromStorageMetas(profiles []*meta.ProfileMetadata) []*perforator.ProfileMeta {
+	protometas := make([]*perforator.ProfileMeta, len(profiles))
+	for i, meta := range profiles {
+		protometas[i] = storageMetaToProtoMeta(meta)
 	}
 	return protometas
 }
@@ -912,27 +928,11 @@ func (s *PerforatorServer) fetchProfiles(
 		return nil, nil, err
 	}
 
-	tlsFilter, err := samplefilter.BuildTLSFilter(query.Selector)
+	filters, err := samplefilter.ExtractSelectorFilters(query.Selector)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	envFilter, envErr := samplefilter.BuildEnvFilter(query.Selector)
-	if envErr != nil {
-		return nil, nil, envErr
-	}
-
-	buildIDFilter, err := samplefilter.BuildBuildIDFilter(query.Selector)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	postprocessedProfiles := samplefilter.FilterProfilesBySampleFilters(
-		profiles,
-		tlsFilter,
-		envFilter,
-		buildIDFilter,
-	)
+	postprocessedProfiles := samplefilter.FilterProfilesBySampleFilters(profiles, filters...)
 
 	for _, profile := range postprocessedProfiles {
 		fixupMultiSampleTypeProfile(profile, targetEventType)
@@ -1178,42 +1178,168 @@ func (s *PerforatorServer) MergeProfiles(
 		return nil, fmt.Errorf("event type %s is not valid", targetEventType)
 	}
 
-	performSampling := false
-	if req.Experimental != nil {
-		performSampling = req.Experimental.SampleProfileStacks
-	}
-
 	if query.MaxSamples == 0 {
 		query.MaxSamples = uint64(req.MaxSamples)
 	}
 
-	mergedProfile, rawProfiles, err := s.fetchProfiles(ctx, query, targetEventType, performSampling)
-	if err != nil {
-		return nil, err
+	if req.GetExperimental().GetEnableNewProfileMerger() {
+		s.l.Debug(ctx, "Merging profiles via new profile merger")
+		return s.fetchAndRenderProfileFast(ctx, req, query, targetEventType)
+	} else {
+		s.l.Debug(ctx, "Merging profiles via legacy profile merger")
+		return s.fetchAndRenderProfileLegacy(ctx, req, query, targetEventType)
+	}
+}
+
+func (s *PerforatorServer) fetchAndRenderProfileFast(
+	ctx context.Context,
+	req *perforator.MergeProfilesRequest,
+	query *meta.ProfileQuery,
+	eventType string,
+) (*perforator.MergeProfilesResponse, error) {
+	if req.GetExperimental().GetSampleProfileStacks() {
+		return nil, fmt.Errorf("the new profile merger does not support sampling")
 	}
 
-	buf, err := s.renderProfile(ctx, mergedProfile, req.GetFormat())
+	opts, err := makeMergeOptions(req, query)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to build merge options: %w", err)
 	}
 
-	url, err := s.maybeUploadProfile(ctx, buf, req.GetFormat())
+	session, err := s.mergemanager.Start(opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize profile merge session: %w", err)
+	}
+	defer session.Close()
+
+	profiles, err := s.profileStorage.SelectProfiles(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select profiles: %w", err)
+	}
+
+	err = s.populateMergeSession(ctx, profiles, session)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download profiles: %w", err)
+	}
+
+	cprofile, err := session.Finish()
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge profiles: %w", err)
+	}
+	defer cprofile.Free()
+
+	data, err := cprofile.MarshalPProf()
+	if err != nil {
+		return nil, fmt.Errorf("failed to merge pprof: %w", err)
+	}
+
+	mergedProfile, err := pprof.ParseData(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize pprof: %w", err)
+	}
+
+	profile, err := s.renderProfile(ctx, mergedProfile, req.GetFormat())
 	if err != nil {
 		return nil, err
 	}
 
 	statistics := quality.CalculateProfileStatistics(mergedProfile)
+	meta := extractProtoMetasFromStorageMetas(profiles)
+
+	return s.makeMergeResponse(ctx, profile, meta, statistics, req)
+}
+
+func makeMergeOptions(
+	req *perforator.MergeProfilesRequest,
+	query *meta.ProfileQuery,
+) (*profileproto.MergeOptions, error) {
+	if req.MergeOptions == nil {
+		req.MergeOptions = &profileproto.MergeOptions{}
+	}
+	options := req.MergeOptions
+
+	if options.SampleFilter == nil {
+		options.SampleFilter = &profileproto.SampleFilter{}
+	}
+
+	err := samplefilter.FillProtoSampleFilter(query.Selector, options.SampleFilter)
+	if err != nil {
+		return nil, err
+	}
+
+	return options, nil
+}
+
+func (s *PerforatorServer) populateMergeSession(
+	ctx context.Context,
+	profiles []*meta.ProfileMetadata,
+	session *cprofile.MergeSession,
+) error {
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(int(s.c.ProfileMerger.ThreadCount))
+
+	for _, profile := range profiles {
+		g.Go(func() error {
+			data, err := s.profileStorage.FetchProfile(ctx, profile)
+			if err != nil {
+				return err
+			}
+			return session.AddPProfProfile(data)
+		})
+	}
+
+	return g.Wait()
+}
+
+func (s *PerforatorServer) fetchAndRenderProfileLegacy(
+	ctx context.Context,
+	req *perforator.MergeProfilesRequest,
+	query *meta.ProfileQuery,
+	eventType string,
+) (*perforator.MergeProfilesResponse, error) {
+	mergedProfile, rawProfiles, err := s.fetchProfiles(
+		ctx,
+		query,
+		eventType,
+		req.GetExperimental().GetSampleProfileStacks(),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	profile, err := s.renderProfile(ctx, mergedProfile, req.GetFormat())
+	if err != nil {
+		return nil, err
+	}
+
+	statistics := quality.CalculateProfileStatistics(mergedProfile)
+	meta := extractProtoMetasFromRawProfiles(rawProfiles)
+
+	return s.makeMergeResponse(ctx, profile, meta, statistics, req)
+}
+
+func (s *PerforatorServer) makeMergeResponse(
+	ctx context.Context,
+	profile []byte,
+	meta []*perforator.ProfileMeta,
+	statistics *perforator.ProfileStatistics,
+	req *perforator.MergeProfilesRequest,
+) (*perforator.MergeProfilesResponse, error) {
+	url, err := s.maybeUploadProfile(ctx, profile, req.GetFormat())
+	if err != nil {
+		return nil, err
+	}
 
 	if url != "" {
 		return &perforator.MergeProfilesResponse{
 			Result:      &perforator.MergeProfilesResponse_ProfileURL{ProfileURL: url},
-			ProfileMeta: extractProtoMetasFromRawProfiles(rawProfiles),
+			ProfileMeta: meta,
 			Statistics:  statistics,
 		}, nil
 	} else {
 		return &perforator.MergeProfilesResponse{
-			Result:      &perforator.MergeProfilesResponse_Profile{Profile: buf},
-			ProfileMeta: extractProtoMetasFromRawProfiles(rawProfiles),
+			Result:      &perforator.MergeProfilesResponse_Profile{Profile: profile},
+			ProfileMeta: meta,
 			Statistics:  statistics,
 		}, nil
 	}

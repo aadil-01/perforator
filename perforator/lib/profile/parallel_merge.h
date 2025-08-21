@@ -42,8 +42,11 @@ public:
     void Add(NProto::NProfile::Profile profile);
 
     // Do some bookkeeping work to finish merging.
-    // You must call TParallelProfileMerger::Finish() after TParallelProfileMerger::Add().
+    // You must call Finish() or Abort() after Add().
     void Finish() &&;
+
+    // Abort merging. Discard merged profiles.
+    void Abort() &&;
 
 private:
     class TImpl;

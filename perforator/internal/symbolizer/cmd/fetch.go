@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -30,6 +31,7 @@ var (
 	sampleProfileStacks bool
 	maxSamples          uint32
 	profileID           string
+	experimentalOptions proto.MergeExperimentalOptions
 
 	format                        string
 	pgoFormat                     string
@@ -180,15 +182,15 @@ func mergeProfiles(
 	filters client.ProfileFilters,
 	maxSamples uint32,
 	format *client.RenderFormat,
-	performSampling bool,
+	experimental *proto.MergeExperimentalOptions,
 ) ([]byte, error) {
 	profile, metas, err := proxyClient.MergeProfiles(
 		ctx,
 		&client.MergeProfilesRequest{
-			ProfileFilters:  filters,
-			MaxSamples:      maxSamples,
-			Format:          format,
-			PerformSampling: performSampling,
+			ProfileFilters: filters,
+			MaxSamples:     maxSamples,
+			Format:         format,
+			Experimental:   experimental,
 		},
 		false,
 	)
@@ -217,6 +219,10 @@ func fetchProfile() error {
 		return err
 	}
 	defer cli.Shutdown()
+
+	if sampleProfileStacks {
+		experimentalOptions.SampleProfileStacks = true
+	}
 
 	format, err := makeRenderFormat(format, formatOpts, enableSymbolization, enableInterpreterStackMerging)
 	if err != nil {
@@ -263,7 +269,7 @@ func fetchProfile() error {
 			},
 			maxSamples,
 			format,
-			sampleProfileStacks,
+			&experimentalOptions,
 		)
 		if err != nil {
 			return err
@@ -559,6 +565,10 @@ func addCommonSelectorOptions(cmd *cobra.Command) {
 		false,
 		`Whether to perform stacks sampling when doing a merge`,
 	)
+
+	cmd.Flags().Var(xpflag.NewFunc(func(value string) error {
+		return json.Unmarshal([]byte(value), &experimentalOptions)
+	}), "experimental", "JSON-formatted profile merge experimental options")
 }
 
 func addCommonRenderOptions(cmd *cobra.Command) {

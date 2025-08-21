@@ -136,6 +136,10 @@ public:
 
 private:
     bool SampleHasOneOfRequiredBinaries(TSample sample) const {
+        if (RequiredOneOfBinaries_.empty()) {
+            return true;
+        }
+
         TSampleKey key = sample.GetKey();
         for (TStack stack : key.GetStacks()) {
             for (TStackFrame frame : stack.GetFrames()) {
@@ -149,6 +153,10 @@ private:
     }
 
     bool SampleHasAllOfRequiredLabels(TSample sample) const {
+        if (RequiredAllOfLabels_.empty()) {
+            return true;
+        }
+
         std::bitset<MaxRequiredLabelCount> found;
         Y_ASSERT(found.size() >= RequiredAllOfLabels_.size());
 
@@ -190,6 +198,9 @@ private:
                 }
             }
         }
+        if (RequiredOneOfBinaries_.empty() && !buildIds.empty()) {
+            HasTriviallyNegativeSampleFilter_ = true;
+        }
 
         // Map labels to internal ids.
         ui64 labelCount = filter.required_all_of_string_labels_size()
@@ -211,6 +222,10 @@ private:
         // If we cannot find some labels, we will not be able to accept any sample.
         if (RequiredAllOfLabels_.size() != labelCount) {
             HasTriviallyNegativeSampleFilter_ = true;
+        }
+
+        if (labelCount == 0 && buildIds.empty()) {
+            HasTriviallyPositiveSampleFilter_ = true;
         }
     }
 

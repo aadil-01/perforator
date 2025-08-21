@@ -9,12 +9,14 @@ IF (CGO_ENABLED AND NOT SANDBOXING)
     )
 
     CGO_SRCS(
-        merge_cgo.go
         error_cgo.go
+        merge_cgo.go
+        profile_cgo.go
     )
 ELSE()
     SRCS(
         merge_nocgo.go
+        profile_nocgo.go
     )
 ENDIF()
 

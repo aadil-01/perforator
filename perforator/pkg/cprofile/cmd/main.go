@@ -42,7 +42,13 @@ func main() {
 		panic(err)
 	}
 
-	data, err := session.Finish()
+	profile, err := session.Finish()
+	if err != nil {
+		panic(err)
+	}
+	defer profile.Free()
+
+	data, err := profile.MarshalPProf()
 	if err != nil {
 		panic(err)
 	}

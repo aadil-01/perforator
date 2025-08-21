@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/pprof/profile"
 
+	"github.com/yandex/perforator/perforator/pkg/cprofile"
 	"github.com/yandex/perforator/perforator/pkg/profile/flamegraph/render"
 	"github.com/yandex/perforator/perforator/proto/perforator"
 )
@@ -28,6 +29,8 @@ func RenderProfile(ctx context.Context, profile *profile.Profile, format *perfor
 		return buildProfileFlamegraph(profile, v.HTMLVisualisation, render.HTMLFormatV2)
 	case *perforator.RenderFormat_TextProfile:
 		return buildProfileTextFormat(profile, v.TextProfile)
+	case *perforator.RenderFormat_ProtoProfile:
+		return buildProfileProto(profile, v.ProtoProfile)
 	}
 
 	return nil, fmt.Errorf("unsupported render format %s", format.String())
@@ -150,4 +153,26 @@ func fillTextFormatOptions(tf *render.TextFormatRenderer, options *perforator.Te
 	}
 
 	return nil
+}
+
+func buildProfileProto(pprof *profile.Profile, options *perforator.ProtoProfileOptions) ([]byte, error) {
+	buf := new(bytes.Buffer)
+
+	err := pprof.WriteUncompressed(buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed marshal pprof profile: %w", err)
+	}
+
+	prof, err := cprofile.ParsePProf(buf.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal pprof profile: %w", err)
+	}
+	defer prof.Free()
+
+	serialized, err := prof.MarshalPProf()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize pprof: %w", err)
+	}
+
+	return serialized, nil
 }

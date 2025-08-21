@@ -27,9 +27,13 @@ public:
         IThreadPool* pool
     );
 
+    ~TImpl();
+
     void Add(NProto::NProfile::Profile&& profile);
 
     void Finish() &&;
+
+    void Abort() &&;
 
 private:
     TMergeResult WorkerThread(ui32 workerId);
@@ -42,7 +46,6 @@ private:
     IThreadPool* Pool_;
     NThreading::TBlockingQueue<NProto::NProfile::Profile> PendingProfiles_;
 
-    // google::protobuf::Arena Arena_;
     TDeque<NProto::NProfile::Profile> IntermediateProfileStorage_;
     TVector<NProto::NProfile::Profile*> IntermediateProfiles_;
 
@@ -67,6 +70,10 @@ TParallelProfileMerger::TImpl::TImpl(
     MergerFuture_ = SetupMergingPipeline();
 }
 
+TParallelProfileMerger::TImpl::~TImpl() {
+    std::move(*this).Abort();
+}
+
 void TParallelProfileMerger::TImpl::Add(NProto::NProfile::Profile&& profile) {
     PendingProfiles_.Push(std::move(profile));
 }
@@ -74,6 +81,13 @@ void TParallelProfileMerger::TImpl::Add(NProto::NProfile::Profile&& profile) {
 void TParallelProfileMerger::TImpl::Finish() && {
     PendingProfiles_.Stop();
     MergerFuture_.GetValueSync();
+}
+
+void TParallelProfileMerger::TImpl::Abort() && {
+    if (MergerFuture_.Initialized()) {
+        PendingProfiles_.Stop();
+        MergerFuture_.Wait();
+    }
 }
 
 NThreading::TFuture<void> TParallelProfileMerger::TImpl::SetupMergingPipeline() {
@@ -152,6 +166,10 @@ void TParallelProfileMerger::Add(NProto::NProfile::Profile profile) {
 
 void TParallelProfileMerger::Finish() && {
     std::move(*Impl_).Finish();
+}
+
+void TParallelProfileMerger::Abort() && {
+    std::move(*Impl_).Abort();
 }
 
 } // namespace NPerforator::NProfile

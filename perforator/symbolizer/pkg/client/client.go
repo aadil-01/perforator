@@ -369,9 +369,9 @@ func (c *Client) GetProfile(
 
 type MergeProfilesRequest struct {
 	ProfileFilters
-	MaxSamples      uint32
-	Format          *RenderFormat
-	PerformSampling bool
+	MaxSamples   uint32
+	Format       *RenderFormat
+	Experimental *perforator.MergeExperimentalOptions
 }
 
 func (c *Client) GetProfileByURL(profileURL string) ([]byte, error) {
@@ -459,10 +459,8 @@ func (c *Client) MergeProfiles(
 				To:   timestamppb.New(request.ToTS),
 			},
 		},
-		MaxSamples: request.MaxSamples,
-		Experimental: &perforator.MergeExperimentalOptions{
-			SampleProfileStacks: request.PerformSampling,
-		},
+		MaxSamples:   request.MaxSamples,
+		Experimental: request.Experimental,
 	}
 
 	return c.doMergeProfiles(ctx, req, asURL)
