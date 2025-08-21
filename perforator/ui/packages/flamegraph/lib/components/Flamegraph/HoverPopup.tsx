@@ -22,7 +22,7 @@ export const HoverPopup: React.FC<HoverPopupProps> = ({ hoverData, anchorRef, ge
     const timeoutRef = React.useRef(null);
     const floatingMiddlewares = [
         shift({
-            boundary: anchorRef.current,
+            boundary: window.document.body,
             crossAxis: true,
         }),
     ];
