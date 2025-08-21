@@ -77,7 +77,7 @@ base_address = lowest_vma_address - lowest_loadable_segment_vaddr
 **Another approach:**
 
 ```
-base_address = lowest_executable_vma_address - lowest_loadable_executable_segment_vaddr
+base_address = any_vma_address - corresponding_elf_vaddr
 ```
 
 We can also find the base address using this formula because the base address represents a constant difference between VMA addresses and ELF address space. In Perforator, we use this second formula as it's more convenient for our use case.

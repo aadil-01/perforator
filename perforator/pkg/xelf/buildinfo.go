@@ -10,10 +10,11 @@ import (
 ////////////////////////////////////////////////////////////////////////////////
 
 type BuildInfo struct {
-	BuildID      string
-	LoadBias     uint64
-	FirstPhdr    *elf.ProgHeader
-	HasDebugInfo bool
+	BuildID                 string
+	LoadBias                uint64
+	FirstPhdr               *elf.ProgHeader
+	ExecutableLoadablePhdrs []elf.ProgHeader
+	HasDebugInfo            bool
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,19 +33,17 @@ func ReadBuildInfo(r io.ReaderAt) (*BuildInfo, error) {
 		return nil, err
 	}
 
-	phdr, err := parseFirstExecutableLoadablePhdr(f)
-	if err != nil {
-		return nil, err
-	}
-
-	if phdr != nil {
+	bi.ExecutableLoadablePhdrs = parsePhdrs(f, executablePhdrFilter)
+	for _, phdr := range bi.ExecutableLoadablePhdrs {
 		// See https://refspecs.linuxbase.org/elf/gabi4+/ch5.pheader.html
 		// "Otherwise, p_align should be a positive, integral power of 2, and p_vaddr should equal p_offset, modulo p_align"
 		if phdr.Align > 1 && phdr.Vaddr%phdr.Align != phdr.Off%phdr.Align {
 			return nil, errors.New("program header alignment invariant is violated")
 		}
+	}
 
-		bi.LoadBias = calculateLoadBias(phdr)
+	if len(bi.ExecutableLoadablePhdrs) > 0 {
+		bi.LoadBias = calculateLoadBias(&bi.ExecutableLoadablePhdrs[0])
 	}
 
 	bi.FirstPhdr = parseFirstLoadablePhdrInfo(f)
@@ -57,14 +56,6 @@ func ReadBuildInfo(r io.ReaderAt) (*BuildInfo, error) {
 	return &bi, nil
 }
 
-func isLoadablePhdr(p *elf.Prog) bool {
-	return p.Type == elf.PT_LOAD
-}
-
-func isExecutablePhdr(p *elf.Prog) bool {
-	return p.Flags&elf.PF_X == elf.PF_X
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 
 func calculateLoadBias(firstExecutableLoadablePhdr *elf.ProgHeader) uint64 {
@@ -75,23 +66,9 @@ func calculateLoadBias(firstExecutableLoadablePhdr *elf.ProgHeader) uint64 {
 	return firstExecutableLoadablePhdr.Vaddr & ^(firstExecutableLoadablePhdr.Align - 1)
 }
 
-func parseFirstExecutableLoadablePhdr(f *elf.File) (*elf.ProgHeader, error) {
-	for _, p := range f.Progs {
-		if p.Filesz == 0 {
-			continue
-		}
-
-		if isLoadablePhdr(p) && isExecutablePhdr(p) {
-			return &p.ProgHeader, nil
-		}
-	}
-
-	return nil, nil
-}
-
 func parseFirstLoadablePhdrInfo(f *elf.File) *elf.ProgHeader {
 	for _, p := range f.Progs {
-		if !isLoadablePhdr(p) {
+		if !loadablePhdrFilter(&p.ProgHeader) {
 			continue
 		}
 
