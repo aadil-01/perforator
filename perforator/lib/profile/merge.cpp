@@ -168,7 +168,7 @@ private:
             }
         }
 
-        return found.all();
+        return found.count() == RequiredAllOfLabels_.size();
     }
 
     void PopulateFilters() {
