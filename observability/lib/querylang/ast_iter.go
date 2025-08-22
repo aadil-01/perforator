@@ -119,6 +119,10 @@ func (f *Selector) RemoveFieldsMatchers(fields ...string) {
 	f.Matchers = filtered
 }
 
+func (f *Selector) AddMatchers(matchers ...*Matcher) {
+	f.Matchers = append(f.Matchers, matchers...)
+}
+
 // CandidateValues returns a superset of values for each field in Selector.
 // If result[field] is nil then the function failed to find a superset of
 // values.
