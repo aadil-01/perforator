@@ -27,13 +27,13 @@ export function SideBySide(props: SideBySideProps) {
                 <TopTable
                     lines={100}
                     disableAutoTabSwitch
-                    className={'visualisation_sbs_top-table'}
+                    className={b('top-table')}
                     {...props}
                     topData={topData!}
                 />
                 <Divider orientation={'vertical'} />
                 <Flamegraph
-                    className={'visualisation_sbs_flamegraph'}
+                    className={b('flamegraph')}
                     {...props}
                 />
             </div>

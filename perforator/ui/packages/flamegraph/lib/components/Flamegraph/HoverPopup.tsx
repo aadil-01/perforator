@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useState } from 'react';
 
 import { useClientPoint, useFloating } from '@floating-ui/react';
-import { shift } from '@floating-ui/react-dom';
+import { shift, size } from '@floating-ui/react-dom';
 
 import { Popup } from '@gravity-ui/uikit';
 
@@ -16,15 +16,23 @@ export type HoverPopupProps = {
     getText: (arg: PopupData['coords']) => string;
 };
 const TIMEOUT_MS = 500;
+const MAX_WIDTH = 600;
 
 export const HoverPopup: React.FC<HoverPopupProps> = ({ hoverData, anchorRef, getText }) => {
     const [isOpen, setIsOpen] = useState(false);
     const timeoutRef = React.useRef(null);
     const floatingMiddlewares = [
         shift({
-            boundary: window.document.body,
+            boundary: anchorRef?.current,
             crossAxis: true,
         }),
+        size({
+            apply: ({availableWidth, elements}) => {
+                const value = `${Math.max(0, Math.min(MAX_WIDTH ,availableWidth))}px`;
+                elements.floating.style.maxWidth = value;
+            },
+            boundary: anchorRef?.current
+         }),
     ];
     const { refs, floatingStyles, context } = useFloating({
         open: isOpen,

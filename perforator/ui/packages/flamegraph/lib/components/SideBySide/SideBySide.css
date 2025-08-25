@@ -6,8 +6,8 @@
     overflow-y: hidden;
 }
 
-.visualisation_sbs_flamegraph,
-.visualisation_sbs_top-table {
+.visualisation_sbs__flamegraph,
+.visualisation_sbs__top-table {
     width: calc(50% - var(--g-spacing-2) - 1px);
     flex-grow: 1;
     flex-shrink: 1;
@@ -15,6 +15,7 @@
     overflow-y: auto;
 }
 
-.visualisation_sbs_flamegraph {
+.visualisation_sbs__flamegraph {
     position: relative;
+    overflow-x: clip;
 }
