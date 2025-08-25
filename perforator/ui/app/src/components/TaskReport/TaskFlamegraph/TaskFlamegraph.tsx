@@ -63,7 +63,7 @@ export const TaskFlamegraph: React.FC<TaskFlamegraphProps> = (props) => {
             uiFactory().rum()?.startDataRendering?.(pageName, '', false);
             const framesCount = profileData?.rows?.reduce((acc, row) => acc + row.length, 0);
 
-            const prerenderColors = withMeasureTime(prerenderColorsOriginal, 'prerenderColors', (ms) => uiFactory().rum()?.sendDelta?.('prerenderColors', ms, { framesCount }));
+            const prerenderColors = withMeasureTime(prerenderColorsOriginal, 'prerenderColors', (ms) => uiFactory().rum()?.sendDelta?.('prerenderColors', ms, { additional: { framesCount } }));
 
             return prerenderColors(profileData, { theme });
         }
