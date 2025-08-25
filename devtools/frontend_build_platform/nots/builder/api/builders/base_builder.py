@@ -165,7 +165,7 @@ class BaseTsBuilder(BaseBuilder):
     @timeit
     def load_ts_config(ts_config_file: str, sources_path: str) -> TsConfig:
         ts_config_curdir = os.path.normpath(os.path.join(sources_path, ts_config_file))
-        ts_config = TsConfig.load(ts_config_curdir)
+        ts_config = TsConfig.load(ts_config_curdir, sources_path)
 
         pj = PackageJson.load(pm_utils.build_pj_path(sources_path))
         ts_config.inline_extend(pj.get_dep_paths_by_names())
