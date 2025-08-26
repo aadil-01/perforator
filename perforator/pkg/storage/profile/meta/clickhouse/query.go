@@ -283,15 +283,11 @@ func buildMatcherWhereClause(matcher *querylang.Matcher) (string, error) {
 
 func makeSelectProfilesQueryBuilder(
 	query *meta.ProfileQuery,
-	excludeExpired bool,
 ) (*sqlbuilder.SelectQueryBuilder, error) {
 	builder := sqlbuilder.Select().
+		Where("expired = false").
 		Values(AllColumns).
 		From("profiles")
-
-	if excludeExpired {
-		builder.Where("expired = false")
-	}
 
 	for _, matcher := range query.Selector.Matchers {
 		if tls.IsTLSMatcherField(matcher.Field) {
@@ -332,7 +328,7 @@ func makeSelectProfilesQueryBuilder(
 }
 
 func buildSelectProfilesQuery(query *meta.ProfileQuery) (string, error) {
-	builder, err := makeSelectProfilesQueryBuilder(query, true)
+	builder, err := makeSelectProfilesQueryBuilder(query)
 	if err != nil {
 		return "", err
 	}

@@ -188,7 +188,7 @@ func (s *Storage) ListSuggestions(
 	profileQuery := &meta.ProfileQuery{
 		Selector: query.Selector,
 	}
-	builder, err := makeSelectProfilesQueryBuilder(profileQuery, false)
+	builder, err := makeSelectProfilesQueryBuilder(profileQuery)
 	if err != nil {
 		return nil, err
 	}
