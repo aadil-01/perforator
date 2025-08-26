@@ -68,7 +68,6 @@ class BaseBuilder(object):
             "output.tar",  # TODO FBP-1978
             pm_constants.OUTPUT_TAR_UUID_FILENAME,
             # Other
-            ".traces",
             "a.yaml",
             self.options.after_build_outdir,
         }

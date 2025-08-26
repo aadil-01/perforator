@@ -41,11 +41,6 @@ def register_base_args(parser: ArgumentParser) -> None:
     )
     parser.add_argument('--nm-bundle', action=YesNoAction, default=False, help="Bundle node_modules into a tar archive")
 
-    parser.add_argument(
-        '--trace',
-        action=YesNoAction,
-        help="Add to the <module_name>.output.tar *.trace file (Trace Events Format, Chrome DevTools compatible)",
-    )
     parser.add_argument('--verbose', action=YesNoAction, default=False, help="Use logging")
 
 
