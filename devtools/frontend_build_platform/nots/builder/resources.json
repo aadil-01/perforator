@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-08-27T13:23:48Z",
+    "created": "2025-08-27T13:49:45Z",
     "pr": {
-      "id": 9815717,
-      "author": "khoden",
-      "summary": "FBP-2366: nots/builder: Релизный флоу не работает (try#5)"
+      "id": 9817317,
+      "author": "robot-nots",
+      "summary": "feat(nots-builder): take v8 build resources into use"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9560625692"
+      "uri": "sbr:9560998445"
     },
     "darwin-arm64": {
-      "uri": "sbr:9560623012"
+      "uri": "sbr:9560995185"
     },
     "linux": {
-      "uri": "sbr:9560631288"
+      "uri": "sbr:9561004799"
     },
     "linux-aarch64": {
-      "uri": "sbr:9560628454"
+      "uri": "sbr:9561001585"
     }
   }
 }
