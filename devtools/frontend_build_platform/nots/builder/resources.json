@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-08-27T14:30:52Z",
+    "created": "2025-08-27T14:51:24Z",
     "pr": {
-      "id": 9818372,
+      "id": 9818703,
       "author": "robot-nots",
-      "summary": "feat(nots-builder): take v11 build resources into use"
+      "summary": "feat(nots-builder): take v12 build resources into use"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9561588554"
+      "uri": "sbr:9561874507"
     },
     "darwin-arm64": {
-      "uri": "sbr:9561586010"
+      "uri": "sbr:9561872199"
     },
     "linux": {
-      "uri": "sbr:9561593739"
+      "uri": "sbr:9561878678"
     },
     "linux-aarch64": {
-      "uri": "sbr:9561590882"
+      "uri": "sbr:9561876670"
     }
   }
 }
