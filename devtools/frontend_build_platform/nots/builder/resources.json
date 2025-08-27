@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-08-08T08:25:10.397Z",
+    "created": "2025-08-27T12:53:25.763Z",
     "pr": {
-      "id": 9567182,
-      "author": "zaverden",
-      "summary": "feat(TS_PROTO): TS_PROTO_AUTO, package generation"
+      "id": 9815717,
+      "author": "khoden",
+      "summary": "FBP-2366: nots/builder: Релизный флоу не работает (try#5)"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9405779203"
+      "uri": "sbr:9560225498"
     },
     "darwin-arm64": {
-      "uri": "sbr:9405777166"
+      "uri": "sbr:9560222614"
     },
     "linux": {
-      "uri": "sbr:9405783131"
+      "uri": "sbr:9560231535"
     },
     "linux-aarch64": {
-      "uri": "sbr:9405781143"
+      "uri": "sbr:9560228393"
     }
   }
 }
