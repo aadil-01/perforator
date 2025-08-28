@@ -1,24 +1,24 @@
 {
   "info": {
-    "created": "2025-08-27T16:02:21Z",
+    "created": "2025-08-28T09:25:56Z",
     "pr": {
-      "id": 9820079,
-      "author": "robot-nots",
-      "summary": "feat(nots-builder): take v15 build resources into use"
+      "id": 9826152,
+      "author": "khoden",
+      "summary": "FBP-2366: nots/builder: Релизный флоу не работает (try#9)"
     }
   },
   "by_platform": {
     "darwin": {
-      "uri": "sbr:9562776760"
+      "uri": "sbr:9568673537"
     },
     "darwin-arm64": {
-      "uri": "sbr:9562774337"
+      "uri": "sbr:9568670798"
     },
     "linux": {
-      "uri": "sbr:9562782023"
+      "uri": "sbr:9568678828"
     },
     "linux-aarch64": {
-      "uri": "sbr:9562779369"
+      "uri": "sbr:9568675918"
     }
   }
 }
