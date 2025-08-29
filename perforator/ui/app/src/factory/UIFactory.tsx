@@ -55,7 +55,7 @@ export class UIFactory {
 
     queryInputs = (): QueryInput[] => QUERY_INPUTS;
 
-    setExternalTheme = (_theme: ThemeType) => {};
+    initializeExternal = (_arg: { theme: ThemeType }) => null as React.ReactNode;
 
     rum = (): Rum => fakeRum;
     logError: SendError = (error, additional, level) => console.error(error, additional, level);

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 
 import { ToasterComponent, ToasterProvider, useThemeType } from '@gravity-ui/uikit';
 import { toaster } from '@gravity-ui/uikit/toaster-singleton';
@@ -15,15 +15,16 @@ import './App.scss';
 
 const AppImpl: React.FC<{}> = () => {
     const theme = useThemeType();
-    useEffect(() => {
-        setTimeout(() => uiFactory().setExternalTheme(theme), 100);
-    }, [theme]);
+    const external = uiFactory().initializeExternal({ theme });
     const searchParams = new URLSearchParams(window.location.search);
     const embed = searchParams.get('embed') === '1';
     const pageProps: PageProps = {
         embed,
     };
-    return (<RouterProvider pageProps={pageProps} />);
+    return <>
+        <RouterProvider pageProps={pageProps} />
+        {external}
+    </>;
 };
 
 export const App: React.FC<{}> = () => {
