@@ -18,6 +18,7 @@ import (
 	"github.com/yandex/perforator/perforator/pkg/profilequerylang"
 	"github.com/yandex/perforator/perforator/pkg/storage/microscope"
 	"github.com/yandex/perforator/perforator/pkg/storage/util"
+	"github.com/yandex/perforator/perforator/proto/lib/time_interval"
 	"github.com/yandex/perforator/perforator/proto/perforator"
 )
 
@@ -71,7 +72,7 @@ func (s *PerforatorServer) ListMicroscopes(ctx context.Context, req *perforator.
 			Selector: scope.Selector,
 			ID:       scope.ID,
 			User:     scope.User,
-			Interval: &perforator.TimeInterval{
+			Interval: &time_interval.TimeInterval{
 				From: timestamppb.New(scope.FromTS),
 				To:   timestamppb.New(scope.ToTS),
 			},
@@ -109,7 +110,7 @@ func (s *PerforatorServer) throttleMicroscope(ctx context.Context) error {
 	return nil
 }
 
-func replaceSelectorTimeInterval(selector *querylang.Selector, interval *perforator.TimeInterval) *querylang.Selector {
+func replaceSelectorTimeInterval(selector *querylang.Selector, interval *time_interval.TimeInterval) *querylang.Selector {
 	selector.Matchers = slices.DeleteFunc(selector.Matchers, func(matcher *querylang.Matcher) bool {
 		return matcher.Field == profilequerylang.TimestampLabel
 	})
@@ -170,7 +171,7 @@ func (s *PerforatorServer) sanitizeMicroscope(ctx context.Context, selector *que
 	}
 	// This a copy of original selector, which we've acquired via
 	// serializing and subsequent deserializing, so we are free to mutate it
-	query.Selector = replaceSelectorTimeInterval(query.Selector, &perforator.TimeInterval{
+	query.Selector = replaceSelectorTimeInterval(query.Selector, &time_interval.TimeInterval{
 		From: timestamppb.New(time.Now().Add(-time.Minute * kMinutesInAnHour)),
 		To:   timestamppb.Now(),
 	})

@@ -21,6 +21,8 @@ GO_GRPC_GATEWAY_V2_SRCS(
 )
 
 PEERDIR(
+    perforator/proto/custom_profiling_operation
+    perforator/proto/lib/time_interval
     perforator/proto/profile
 )
 

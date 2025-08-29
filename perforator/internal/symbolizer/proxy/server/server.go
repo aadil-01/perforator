@@ -66,6 +66,7 @@ import (
 	"github.com/yandex/perforator/perforator/pkg/storage/util"
 	"github.com/yandex/perforator/perforator/pkg/tracing"
 	"github.com/yandex/perforator/perforator/pkg/xlog"
+	"github.com/yandex/perforator/perforator/proto/lib/time_interval"
 	"github.com/yandex/perforator/perforator/proto/perforator"
 	profileproto "github.com/yandex/perforator/perforator/proto/profile"
 )
@@ -1032,7 +1033,7 @@ func (s *PerforatorServer) constructPGOProfilesQuery(req *perforator.GeneratePGO
 
 			return s.parseProfileQuery(&perforator.ProfileQuery{
 				Selector: selector,
-				TimeInterval: &perforator.TimeInterval{
+				TimeInterval: &time_interval.TimeInterval{
 					From: timestamppb.New(defaultTimeIntervalStart),
 				},
 			})

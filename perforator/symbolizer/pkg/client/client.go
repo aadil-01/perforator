@@ -25,6 +25,7 @@ import (
 	"github.com/yandex/perforator/library/go/ptr"
 	"github.com/yandex/perforator/perforator/pkg/endpointsetresolver"
 	"github.com/yandex/perforator/perforator/pkg/xlog"
+	"github.com/yandex/perforator/perforator/proto/lib/time_interval"
 	"github.com/yandex/perforator/perforator/proto/perforator"
 )
 
@@ -258,7 +259,7 @@ func (c *Client) ListProfiles(
 		&perforator.ListProfilesRequest{
 			Query: &perforator.ProfileQuery{
 				Selector: filters.Selector,
-				TimeInterval: &perforator.TimeInterval{
+				TimeInterval: &time_interval.TimeInterval{
 					From: timestamppb.New(filters.FromTS),
 					To:   timestamppb.New(filters.ToTS),
 				},
@@ -454,7 +455,7 @@ func (c *Client) MergeProfiles(
 		Format: request.Format,
 		Query: &perforator.ProfileQuery{
 			Selector: request.Selector,
-			TimeInterval: &perforator.TimeInterval{
+			TimeInterval: &time_interval.TimeInterval{
 				From: timestamppb.New(request.FromTS),
 				To:   timestamppb.New(request.ToTS),
 			},
@@ -594,7 +595,7 @@ func (c *Client) UploadRenderedProfile(
 		},
 		Query: &perforator.ProfileQuery{
 			Selector: fmt.Sprintf(`{system_name = "uploads", id="%s"}`, profileID),
-			TimeInterval: &perforator.TimeInterval{
+			TimeInterval: &time_interval.TimeInterval{
 				From: timestamppb.New(meta.GetTimestamp().AsTime().Add(-time.Minute)),
 			},
 		},

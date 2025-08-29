@@ -20,6 +20,7 @@ import (
 	"github.com/yandex/perforator/perforator/pkg/profilequerylang"
 	"github.com/yandex/perforator/perforator/pkg/xlog"
 	"github.com/yandex/perforator/perforator/pkg/xpflag"
+	"github.com/yandex/perforator/perforator/proto/lib/time_interval"
 	proto "github.com/yandex/perforator/perforator/proto/perforator"
 	"github.com/yandex/perforator/perforator/symbolizer/pkg/client"
 )
@@ -315,14 +316,14 @@ func fetchDiffProfile(args []string) error {
 		return err
 	}
 
-	var interval *proto.TimeInterval
+	var interval *time_interval.TimeInterval
 	if startTime != "" || endTime != "" {
 		startTime, endTime, err := humantime.ParseInterval(startTime, endTime)
 		if err != nil {
 			return err
 		}
 
-		interval = &proto.TimeInterval{
+		interval = &time_interval.TimeInterval{
 			From: timestamppb.New(startTime),
 			To:   timestamppb.New(endTime),
 		}

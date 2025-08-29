@@ -3,6 +3,8 @@ syntax = "proto3";
 import "google/api/annotations.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
+
+import "perforator/proto/lib/time_interval/time_interval.proto";
 import "perforator/proto/profile/merge_options.proto";
 
 package NPerforator.NProto;
@@ -62,11 +64,6 @@ service Perforator {
 message Paginated {
     uint64 Offset = 1;
     uint64 Limit = 2;
-}
-
-message TimeInterval {
-    google.protobuf.Timestamp From = 1;
-    google.protobuf.Timestamp To = 2;
 }
 
 message SortOrder {
@@ -194,7 +191,7 @@ message ProfileQuery {
     optional string Service = 1;
 
     // Time interval. Optional.
-    optional TimeInterval TimeInterval = 2;
+    optional NPerforator.NProto.NTimeInterval.TimeInterval TimeInterval = 2;
 
     reserved 3 to 8;
     reserved "NodeID", "PodID", "BuildID", "CPU", "ProfilerVersion", "ProfileID";
