@@ -13,6 +13,7 @@ import { useFullscreen } from 'src/components/Fullscreen/FullscreenContext';
 import { Link } from 'src/components/Link/Link';
 import { uiFactory } from 'src/factory';
 import { withMeasureTime } from 'src/utils/logging';
+import { measureBrowserMemory } from 'src/utils/performance';
 import { useTypedQuery } from 'src/utils/query';
 import { createSuccessToast } from 'src/utils/toaster';
 
@@ -64,8 +65,15 @@ export const Visualisation: React.FC<VisualisationProps> = ({ profileData, ...pr
             onFinishRendering: (opts) => {
                 uiFactory().rum()?.finishDataRendering?.('task-flamegraph');
                 if (opts?.delta && opts?.textNodesCount) {
-                    const additional = { textNodesCount: opts.textNodesCount, exceededLimit: opts.exceededLimit };
+                    const memory = measureBrowserMemory();
+                    const additional = { textNodesCount: opts.textNodesCount, exceededLimit: opts.exceededLimit,
+                        ...(memory ? memory : {}),
+                    };
                     uiFactory().rum()?.sendDelta?.('flamegraph-render', opts.delta, { additional });
+                    uiFactory().rum()?.logInt?.('flamegraph-render-nodes', opts.textNodesCount);
+                    if (memory) {
+                        uiFactory().rum()?.logMemory?.('flamegraph-render', memory);
+                    }
                 }
             },
             onSuccess: createSuccessToast,
@@ -78,7 +86,13 @@ export const Visualisation: React.FC<VisualisationProps> = ({ profileData, ...pr
             navigate,
             getState: getQuery,
             setState: setQuery,
-            onFinishRendering: () => uiFactory().rum()?.finishDataRendering?.('top-table'),
+            onFinishRendering: () => {
+                uiFactory().rum()?.finishDataRendering?.('top-table');
+                const memory = measureBrowserMemory();
+                if (memory) {
+                    uiFactory().rum()?.logMemory?.('top-table', memory);
+                }
+            },
             goToDefinitionHref: uiFactory().goToDefinitionHref,
             ...props,
         } : null;
