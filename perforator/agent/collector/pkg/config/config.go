@@ -182,7 +182,7 @@ func defaultPointer[T any](ptr **T, value T) {
 }
 
 func defaultSlice[T any](ptr *[]T, value ...T) {
-	if *ptr == nil || len(*ptr) == 0 {
+	if len(*ptr) == 0 {
 		*ptr = value
 	}
 }
