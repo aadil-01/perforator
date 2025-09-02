@@ -1911,7 +1911,7 @@
     "title": "Next.js",
     "description": "Сборщик-бандлер от проекта Next.js\n\nОчень opinionated, но кому-то подходит.\n\nВ tier-0 используется в модуле/макросе [`TS_NEXT()`](https://docs.yandex-team.ru/frontend-in-arcadia/references/TS_NEXT).",
     "type": "NPM_PACKAGE",
-    "default": "15.4.6",
+    "default": "15.4.7",
     "links": {
       "Home": "https://nextjs.org",
       "Sources": "https://github.com/vercel/next.js",
@@ -1920,6 +1920,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "15.4.7": {
+        "add_date": "2025-09-02T05:30:45",
+        "resources": []
+      },
       "15.4.6": {
         "add_date": "2025-08-26T05:32:53",
         "resources": []
@@ -2014,6 +2018,10 @@
       },
       "15.0.0": {
         "add_date": "2024-11-05T05:31:52",
+        "resources": []
+      },
+      "14.2.32": {
+        "add_date": "2025-09-02T05:30:45",
         "resources": []
       },
       "14.2.31": {
@@ -6117,7 +6125,7 @@
     "title": "webpack",
     "description": "Классический сборщик frontend проектов\n\nВ tier-0 используется в модуле/макросе [`TS_WEBPACK()`](https://docs.yandex-team.ru/frontend-in-arcadia/references/TS_WEBPACK).",
     "type": "NPM_PACKAGE",
-    "default": "5.101.0",
+    "default": "5.101.3",
     "links": {
       "Home": "https://webpack.js.org",
       "Sources": "https://github.com/webpack/webpack",
@@ -6127,6 +6135,10 @@
     },
     "useDirectly": true,
     "versions": {
+      "5.101.3": {
+        "add_date": "2025-09-02T05:35:07",
+        "resources": []
+      },
       "5.101.0": {
         "add_date": "2025-08-12T05:32:22",
         "resources": []
